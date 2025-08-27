@@ -1,0 +1,50 @@
+# ========= BUILD (Swift Release) =========
+FROM swift:5.9.1-focal AS builder
+WORKDIR /app
+
+# Remove any host-side build cache to avoid SwiftPM version mismatch
+RUN rm -rf .build .swiftpm
+
+# Copy manifest first to use Docker caching smartly
+COPY Package.swift Package.resolved ./
+RUN swift package resolve
+
+# Copy all app and Hailo inference code
+COPY . .
+
+# Validate what got copied during build (debug entry)
+RUN ls -R /app || true
+
+# Clean again before build
+RUN rm -rf .build .swiftpm && swift build -c release
+RUN swift package resolve
+RUN swift package clean
+# Copy the built executable to a predictable path
+RUN cp .build/release/Run /run/Run
+
+# ========= RUNTIME IMAGE =========
+FROM ubuntu:20.04
+WORKDIR /app
+
+# Install runtime deps: GStreamer, Python, Hailo drivers
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
+  apt-get install -y unzip python3-pip python3-gi \
+                     libgirepository1.0-dev gir1.2-gtk-3.0 \
+                     pkg-config gstreamer1.0-tools gstreamer1.0-plugins-* \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy your vapor server binary
+COPY --from=builder /run/Run .
+
+# Copy your inference pipeline and Hailo examples
+COPY . .
+# Also mirror Hailo examples to root for consistency inside container
+COPY h8-examples /h8-examples
+
+# Setup inference script permissions
+RUN chmod +x ./pipelines/runInference.sh
+
+# Serve Vapor as the container's entrypoint
+ENTRYPOINT ["./Run", "serve", "--hostname", "0.0.0.0", "--port", "8080"]
+EXPOSE 8080
+

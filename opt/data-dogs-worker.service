@@ -1,0 +1,14 @@
+[Unit]
+Description=Data Dogs Hailo Worker
+After=network-online.target
+
+[Service]
+User=pi
+Environment=SESSIONS_DIR=/home/pi/appdata/sessions
+Environment=HEF_PATH=/opt/hailo/models/sample.hef
+ExecStart=/usr/bin/python3 /home/pi/vapor-docker/opt/hailo/session_worker.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

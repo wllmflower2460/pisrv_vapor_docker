@@ -1,0 +1,23 @@
+# Build artifacts
+.build/
+DerivedData/
+
+# Version control
+.git/
+.gitignore
+
+# Dependency lock file (optional – include if you want Docker to install fresh deps)
+Package.resolved
+
+# Xcode project/workspace
+*.xcodeproj
+*.xcworkspace
+
+# Logs and temp files
+*.log
+*.tmp
+
+# macOS system files
+.DS_Store
+
+

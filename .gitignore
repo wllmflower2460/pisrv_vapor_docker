@@ -1,0 +1,20 @@
+.build/
+.swiftpm/
+Package.resolved
+.DS_Store
+*.log
+*.xcodeproj/
+app.db
+# SwiftPM & build
+.build/
+.swiftpm/
+*.resolved
+
+# Misc
+.DS_Store
+*.log
+
+# Data artifacts
+db.sqlite
+imu.json
+sample.mp4

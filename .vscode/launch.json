@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:vapor-docker}",
+            "name": "Debug Run",
+            "program": "${workspaceFolder:vapor-docker}/.build/debug/Run",
+            "preLaunchTask": "swift: Build Debug Run"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:vapor-docker}",
+            "name": "Release Run",
+            "program": "${workspaceFolder:vapor-docker}/.build/release/Run",
+            "preLaunchTask": "swift: Build Release Run"
+        }
+    ]
+}
