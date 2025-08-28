@@ -1,4 +1,5 @@
 services:
+  # Existing Todo API service
   api:
     image: vapor-app:latest
     container_name: vapor
@@ -21,6 +22,33 @@ services:
       retries: 3
       start_period: 5s
     # Optional: keep logs from growing forever
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # EdgeInfer service for Hailo-8 behavioral analysis
+  edge-infer:
+    build: 
+      context: ./EdgeInfer
+      dockerfile: Dockerfile
+    container_name: edge-infer
+    user: "1000:1000"  # Run as pi user
+    ports:
+      - "8080:8080"   # EdgeInfer on port 8080 (as per your plan)
+    volumes:
+      - /opt/hailo:/opt/hailo:ro  # Future HailoRT integration
+    environment:
+      LOG_LEVEL: info
+      PORT: 8080
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s  # Give it a bit more time to start
     logging:
       driver: "json-file"
       options:

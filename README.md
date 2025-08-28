@@ -1,90 +1,57 @@
-<p align="center">
-    <img src="https://user-images.githubusercontent.com/1342803/36623515-7293b4ec-18d3-11e8-85ab-4e2f8fb38fbd.png" width="320" alt="API Template">
-    <br>
-    <br>
-    <a href="http://docs.vapor.codes/3.0/">
-        <img src="http://img.shields.io/badge/read_the-docs-2196f3.svg" alt="Documentation">
-    </a>
-    <a href="https://discord.gg/vapor">
-        <img src="https://img.shields.io/discord/431917998102675485.svg" alt="Team Chat">
-    </a>
-    <a href="LICENSE">
-        <img src="http://img.shields.io/badge/license-MIT-brightgreen.svg" alt="MIT License">
-    </a>
-    <a href="https://circleci.com/gh/vapor/api-template">
-        <img src="https://circleci.com/gh/vapor/api-template.svg?style=shield" alt="Continuous Integration">
-    </a>
-    <a href="https://swift.org">
-        <img src="http://img.shields.io/badge/swift-5.1-brightgreen.svg" alt="Swift 5.1">
-    </a>
-</p>
+# Grafana & Prometheus Provisioning (PiSrv)
 
-# Data Dogs – Vapor API (Pi) + Hailo Worker (optional)
+This bundle gives you:
+- **Grafana dashboards provisioning** (auto-load dashboard JSONs on startup)
+- **Grafana Prometheus datasource** (optional)
+- **Prometheus alert rules** (error rate, latency p95, and no-traffic)
 
-Vapor 4 API running on a Raspberry Pi. Accepts video + IMU uploads from an iOS app, stores them under a bind-mounted sessions dir, and (optionally) kicks off a Hailo-8 worker that writes `results.json` per session.
+## Layout
 
-## TL;DR
+```
+/etc/grafana/provisioning/
+  dashboards/
+    pisrv/
+      grafana_pisrv_prometheus_dashboard.json   # put the JSON here
+    dashboards-pisrv.yaml                       # from this bundle
+  datasources/
+    datasource-prometheus.yaml                  # from this bundle (optional)
 
-```bash
-# Build
-docker build -t vapor-app:clean .
+/etc/prometheus/
+  rules/
+    prometheus_rules_pisrv.yml                  # from this bundle
+prometheus.yml                                   # add 'rule_files' entry
+```
 
-# Run (API key disabled for easier testing)
-docker rm -f vapor-app 2>/dev/null || true
-docker run -d --name vapor-app \
-  --user 1000:1000 \
-  -p 8082:8080 \
-  -e SESSIONS_DIR=/var/app/sessions \
-  -v /home/pi/appdata/sessions:/var/app/sessions \
-  vapor-app:clean
+## Steps
 
-# Health check (open)
-curl -sSf http://localhost:8082/healthz
+### 1) Grafana
+1. Copy `dashboards-pisrv.yaml` to `/etc/grafana/provisioning/dashboards/`.
+2. Create folder `/etc/grafana/provisioning/dashboards/pisrv/` and place your dashboard JSON(s) in it (e.g., `grafana_pisrv_prometheus_dashboard.json`).
+3. (Optional) Copy `datasource-prometheus.yaml` to `/etc/grafana/provisioning/datasources/` and edit the `url` if Prometheus is not at `http://prometheus:9090`.
+4. Restart Grafana: `sudo systemctl restart grafana-server` (or docker restart).
 
-# List sessions (no auth required)
-curl -sSf http://localhost:8082/sessions | jq
+### 2) Prometheus
+1. Copy `prometheus_rules_pisrv.yml` to `/etc/prometheus/rules/`.
+2. Edit `prometheus.yml` to include:
+   ```yaml
+   rule_files:
+     - /etc/prometheus/rules/prometheus_rules_pisrv.yml
+   ```
+3. Restart Prometheus.
 
-### Config
-Copy `Resources/ServerConfig.example.plist` → `ServerConfig.plist` and set:
-- BaseURL: http://<pi-ip>:8082
-- APIKey:  (not required - leave empty)
-
-(Optional) Use Debug tab to override at runtime via UserDefaults.
+### Alert Details
+- **PiSrvHighErrorRate**: 4xx/5xx > **5%** for **5m**.
+- **PiSrvLatencyP95High**: p95 latency > **0.5s** for **10m**.
+- **PiSrvNoTraffic**: zero total request rate for **10m** (fires after 15m).
 
 ### Notes
-- If BaseURL is http://, Info.plist includes ATS local-network exception.
-- For stable demos, prefer Pi IP over mDNS hostnames.
-
-Session Retention
-Purpose: Automatically purge old training session folders to free space and keep the server tidy.
-
-Path: /home/pi/appdata/sessions
-
-Retention Window:
-Session directories older than 7 days are deleted.
-
-Automation:
-Managed by clean-sessions.service (oneshot) + clean-sessions.timer (daily).
-Timer runs every day at 03:30 local time.
-
-Manual Run:
-sudo systemctl start clean-sessions.service
-
-Force a Test Deletion:
-BASE=/home/pi/appdata/sessions
-mkdir -p "$BASE/OLD_TEST"
-sudo touch -d "8 days ago" "$BASE/OLD_TEST"
-sudo systemctl start clean-sessions.service
-
-Check Logs:
-journalctl -u clean-sessions.service -n 50 --no-pager
-
-Check Timer Status:
-systemctl list-timers | grep clean-sessions
-
-Script Location:
-/usr/local/bin/clean-sessions.sh
-
-Unit Files:
-/etc/systemd/system/clean-sessions.service
-/etc/systemd/system/clean-sessions.timer
+- If you want **route-specific** alerts, add `by (route)` to the PromQL aggregations and set labels in annotations.
+- Ensure your Vapor app exposes `/metrics` and Prometheus scrapes it:
+  ```yaml
+  scrape_configs:
+    - job_name: 'pisrv'
+      static_configs:
+        - targets: ['<pi-ip>:8080']
+      metrics_path: /metrics
+      scrape_interval: 15s
+  ```
