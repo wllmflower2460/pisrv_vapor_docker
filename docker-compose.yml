@@ -34,6 +34,7 @@ services:
       context: ./EdgeInfer
       dockerfile: Dockerfile
     container_name: edge-infer
+    init: true  # Handle zombie processes
     user: "1000:1000"  # Run as pi user
     ports:
       - "8080:8080"   # EdgeInfer on port 8080 (as per your plan)
@@ -43,12 +44,21 @@ services:
       LOG_LEVEL: info
       PORT: 8080
     restart: unless-stopped
+    stop_grace_period: 20s
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/healthz >/dev/null || exit 1"]
       interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s  # Give it a bit more time to start
+      timeout: 10s
+      retries: 5
+      start_period: 90s  # Generous Pi startup time for Swift warm-up
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 800M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     logging:
       driver: "json-file"
       options:

@@ -32,6 +32,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libatomic1 \
     ca-certificates \
     curl \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -46,9 +47,9 @@ RUN mkdir -p /opt/hailo
 # Expose port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=30s \
-  CMD curl -fsS http://localhost:8080/healthz || exit 1
+# Health check with generous Pi startup time
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=90s \
+  CMD wget -q -O- http://localhost:8080/healthz >/dev/null || exit 1
 
 # Run the app
 CMD ["/run/EdgeInfer", "serve", "--hostname", "0.0.0.0", "--port", "8080"]
