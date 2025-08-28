@@ -4,31 +4,25 @@
 EdgeInfer is **fully functional** but Docker health check timeouts (3s) are too aggressive, causing container restart loops that clear sessions and make the API appear unstable.
 
 ## Required Fix
-**File**: `/home/pi/pisrv_vapor_docker/docker-compose.yml`  
-**Section**: `edge-infer` service health check configuration  
-**Line**: ~49 (timeout: 3s)
+**File**: `/home/pi/pisrv_vapor_docker/EdgeInfer/Dockerfile`  
+**Section**: HEALTHCHECK directive  
+**Line**: 50 (--timeout=3s)
 
 ## Exact Changes Needed
 
-Replace the existing health check configuration:
-```yaml
-healthcheck:
-  test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
-  interval: 30s
-  timeout: 3s          # ← CHANGE THIS
-  retries: 3           # ← CHANGE THIS  
-  start_period: 10s    # ← CHANGE THIS
+Replace the existing Dockerfile health check:
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD curl -fsS http://localhost:8080/healthz || exit 1
 ```
 
 With this updated configuration:
-```yaml
-healthcheck:
-  test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
-  interval: 30s
-  timeout: 10s         # ← INCREASED from 3s
-  retries: 5           # ← INCREASED from 3  
-  start_period: 30s    # ← INCREASED from 10s
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=30s \
+  CMD curl -fsS http://localhost:8080/healthz || exit 1
 ```
+
+**Note**: Dockerfile HEALTHCHECK overrides docker-compose healthcheck settings!
 
 ## Implementation Steps
 
@@ -37,14 +31,15 @@ healthcheck:
    docker stop edge-infer && docker rm edge-infer
    ```
 
-2. **Edit docker-compose.yml**:
-   ```bash
-   nano /home/pi/pisrv_vapor_docker/docker-compose.yml
-   ```
-
-3. **Apply changes**:
+2. **Pull updated code**:
    ```bash
    cd /home/pi/pisrv_vapor_docker
+   git pull
+   ```
+
+3. **Rebuild EdgeInfer with fixed Dockerfile**:
+   ```bash
+   docker-compose build edge-infer
    docker-compose up -d edge-infer
    ```
 
