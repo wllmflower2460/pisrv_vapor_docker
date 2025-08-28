@@ -5,9 +5,6 @@ public func configure(_ app: Application) async throws {
     
     // MARK: - Middleware Configuration
     
-    // Create shared metrics instance
-    let metrics = SimpleMetrics()
-    
     // Add CORS middleware for iOS app communication
     let corsConfiguration = CORSMiddleware.Configuration(
         allowedOrigin: .all,
@@ -16,18 +13,29 @@ public func configure(_ app: Application) async throws {
     )
     app.middleware.use(CORSMiddleware(configuration: corsConfiguration), at: .beginning)
     
-    // Add Prometheus metrics middleware
-    let prometheusMiddleware = PrometheusMiddleware(metrics: metrics)
-    app.middleware.use(prometheusMiddleware)
+    // Add enhanced Prometheus metrics middleware
+    app.middleware.use(PrometheusMiddleware())
     
     // Add error handling middleware
     app.middleware.use(ErrorMiddleware.default(environment: app.environment))
     
     // MARK: - Route Registration
     
-    // Register metrics and health endpoints
-    let metricsController = MetricsController(metrics: metrics)
-    try app.register(collection: metricsController)
+    // Register health check endpoint (required for Docker health check)
+    app.get("healthz") { req async throws -> [String: Any] in
+        let formatter = ISO8601DateFormatter()
+        return [
+            "status": "healthy",
+            "timestamp": formatter.string(from: Date()),
+            "service": "EdgeInfer",
+            "version": "1.0.0"
+        ]
+    }
+    
+    // Register enhanced Prometheus metrics endpoint
+    app.get("metrics") { req async throws -> String in
+        try await PrometheusMetrics.client.collect()
+    }
     
     // Register analysis endpoints  
     let analysisController = AnalysisController()

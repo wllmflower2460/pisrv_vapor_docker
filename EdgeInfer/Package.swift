@@ -18,12 +18,15 @@ let package = Package(
     dependencies: [
         // 💧 Vapor framework
         .package(url: "https://github.com/vapor/vapor.git", from: "4.92.0"),
+        // 📊 Prometheus metrics
+        .package(url: "https://github.com/MrLotU/SwiftPrometheus.git", from: "2.0.0"),
     ],
     targets: [
         .target(
             name: "App",
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
+                .product(name: "Prometheus", package: "SwiftPrometheus"),
             ],
             swiftSettings: [
                 .unsafeFlags(["-cross-module-optimization"], .when(configuration: .release))
