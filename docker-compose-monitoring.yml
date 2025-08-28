@@ -1,80 +1,74 @@
-version: '3.8'
-
-services:
-  # EdgeInfer service for Hailo-8 behavioral analysis
-  edge-infer:
-    build: 
-      context: ./repo/EdgeInfer
-      dockerfile: Dockerfile
-    container_name: edge-infer
-    user: "1000:1000"
-    ports:
-      - "8080:8080"
-    volumes:
-      - /opt/hailo:/opt/hailo:ro
-    environment:
-      LOG_LEVEL: info
-      PORT: 8080
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - monitoring
-
-  # Prometheus for metrics collection
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./grafana_prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./grafana_prometheus/grafana_prometheus_provisioning/prometheus_rules_pisrv.yml:/etc/prometheus/rules/prometheus_rules_pisrv.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-      - '--web.enable-admin-api'
-    restart: unless-stopped
-    networks:
-      - monitoring
-
-  # Grafana for visualization
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana_prometheus/grafana_prometheus_provisioning/dashboards-pisrv.yaml:/etc/grafana/provisioning/dashboards/dashboards-pisrv.yaml:ro
-      - ./grafana_prometheus/grafana_prometheus_provisioning/datasource-prometheus.yaml:/etc/grafana/provisioning/datasources/datasource-prometheus.yaml:ro
-      - ./grafana_prometheus/grafana_prometheus_provisioning/grafana_pisrv_prometheus_dashboard.json:/etc/grafana/provisioning/dashboards/pisrv/grafana_pisrv_prometheus_dashboard.json:ro
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel
-    restart: unless-stopped
-    networks:
-      - monitoring
+version: "3.9"
 
 networks:
   monitoring:
-    driver: bridge
 
 volumes:
   prometheus_data:
   grafana_data:
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    networks: [monitoring]
+    ports:
+      - "9090:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./grafana_prometheus_provisioning/prometheus_rules_pisrv.yml:/etc/prometheus/rules/prometheus_rules_pisrv.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    restart: unless-stopped
+    depends_on: [prometheus]
+    networks: [monitoring]
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=change_me   # change in prod
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana_prometheus_provisioning/dashboards-pisrv.yaml:/etc/grafana/provisioning/dashboards/dashboards-pisrv.yaml:ro
+      - ./grafana_prometheus_provisioning/datasource-prometheus.yaml:/etc/grafana/provisioning/datasources/datasource-prometheus.yaml:ro
+      # Dashboard JSON—Grafana expects it under a folder; this bind creates it:
+      - ./grafana_prometheus_provisioning/vapor_prometheus_dropin/grafana_pisrv_prometheus_dashboard.json:/etc/grafana/provisioning/dashboards/pisrv/grafana_pisrv_prometheus_dashboard.json:ro
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    networks: [monitoring]
+    pid: "host"
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    networks: [monitoring]
+    ports:
+      - "8081:8080"   # UI on :8081 to avoid clashing with your API
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
