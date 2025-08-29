@@ -22,14 +22,8 @@ public func configure(_ app: Application) async throws {
     // MARK: - Route Registration
     
     // Register health check endpoint (required for Docker health check)
-    app.get("healthz") { req async throws -> [String: Any] in
-        let formatter = ISO8601DateFormatter()
-        return [
-            "status": "healthy",
-            "timestamp": formatter.string(from: Date()),
-            "service": "EdgeInfer",
-            "version": "1.0.0"
-        ]
+    app.get("healthz") { req async throws -> String in
+        return "OK"
     }
     
     // Register enhanced Prometheus metrics endpoint

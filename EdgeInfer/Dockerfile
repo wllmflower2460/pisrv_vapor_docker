@@ -47,9 +47,9 @@ RUN mkdir -p /opt/hailo
 # Expose port
 EXPOSE 8080
 
-# Health check with generous Pi startup time
+# Health check with generous Pi startup time  
 HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=90s \
-  CMD wget -q -O- http://localhost:8080/healthz >/dev/null || exit 1
+  CMD curl -f http://localhost:8080/healthz || exit 1
 
 # Run the app
 CMD ["/run/EdgeInfer", "serve", "--hostname", "0.0.0.0", "--port", "8080"]
