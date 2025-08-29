@@ -36,3 +36,41 @@ groups:
     annotations:
       summary: "No incoming traffic"
       description: "No HTTP requests received in the last 10 minutes."
+
+# EdgeInfer healthz monitoring - calibrated for Docker healthcheck every 30s (~0.033 req/s)
+- name: edgeinfer-healthz-calibrated
+  interval: 30s
+  rules:
+  # No traffic for 10m (Docker healthcheck should create ~2/min). Treat as critical.
+  - alert: HealthzNoTraffic
+    expr: sum(rate(http_requests_total{route="/healthz"}[10m])) == 0
+    for: 10m
+    labels:
+      severity: critical
+      service: edgeinfer
+    annotations:
+      summary: "No /healthz traffic for 10m"
+      description: "Expected Docker healthcheck traffic (~2/min) not observed."
+
+  # Success rate too low vs expected rate for 15m (warn)
+  # Expected ~0.033/s; warn if below 0.02/s (~1.2/min) sustained.
+  - alert: HealthzSuccessRateLow
+    expr: sum(rate(http_requests_total{route="/healthz",status="200"}[15m])) < 0.02
+    for: 15m
+    labels:
+      severity: warning
+      service: edgeinfer
+    annotations:
+      summary: "/healthz success rate low"
+      description: "Success rate < 0.02 req/s over 15m (expected ~0.033 req/s with 30s healthcheck)."
+
+  # Error ratio on healthz > 20% over 10m (critical)
+  - alert: HealthzHighErrorRatio
+    expr: (sum(rate(http_requests_total{route="/healthz",status=~"4..|5.."}[10m]))) / clamp_min(sum(rate(http_requests_total{route="/healthz"}[10m])), 0.0001) > 0.2
+    for: 10m
+    labels:
+      severity: critical
+      service: edgeinfer
+    annotations:
+      summary: "High /healthz error ratio"
+      description: "More than 20% of /healthz requests are 4xx/5xx over 10m."

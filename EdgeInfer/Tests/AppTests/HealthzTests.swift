@@ -1,4 +1,3 @@
-// Tests/AppTests/HealthzTests.swift
 import XCTVapor
 @testable import App
 
