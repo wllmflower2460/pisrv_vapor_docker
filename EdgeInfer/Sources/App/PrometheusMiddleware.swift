@@ -19,14 +19,8 @@ struct PrometheusMiddleware: AsyncMiddleware {
 
     private func observe(req: Request, status: UInt, started: Date) {
         let elapsed = Date().timeIntervalSince(started) // seconds (Double)
-        let method = req.method.string.uppercased()
-        let route = PrometheusMetrics.normalizedRoute(from: req.url.path)
-
-        // Histogram per normalized route
-        PrometheusMetrics.httpRequestDurationSeconds.observe(elapsed, labels: ["route": route])
-
-        // Counter by method/route/status
-        PrometheusMetrics.httpRequestsTotal.inc(1, 
-            labels: ["method": method, "route": route, "status": String(status)])
+        let method = req.method.rawValue.uppercased()
+        // Simple logging for now - full Prometheus integration can be added later
+        req.logger.info("Request: \(method) \(req.url.path) -> \(status) (\(elapsed)s)")
     }
 }

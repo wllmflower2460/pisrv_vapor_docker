@@ -1,4 +1,4 @@
-# Copilot Implementation Instructions: Fix EdgeInfer Health Check Empty Response
+# Copilot Implementation Instructions: ChatGPT Definitive Health Check Fix
 
 ## Problem Summary
 EdgeInfer health check endpoint `/healthz` returns "Empty reply from server" (curl error 52) despite:
@@ -7,47 +7,51 @@ EdgeInfer health check endpoint `/healthz` returns "Empty reply from server" (cu
 - ✅ Prometheus metrics showing 200 OK responses
 - ❌ Health check consistently failing with empty responses
 
-## Root Cause Identified
-The `/healthz` endpoint returns `[String: Any]` requiring JSON serialization, while `/metrics` returns simple `String`. The JSON serialization is causing the empty response issue.
+## Root Cause Identified (ChatGPT Analysis)
+**Key Insight**: Prometheus middleware records 200 status **before** response bytes are flushed to client. If there's HTTP framing ambiguity (missing Content-Length, etc.), clients get empty replies while metrics show 200 OK.
+
+**Solution**: Explicit HTTP headers with `Content-Length` and `Connection: close` eliminate framing issues on embedded targets.
 
 ## Required Fixes
 
-### Fix 1: Simplify Health Endpoint Response
+### Fix 1: Replace Health Endpoint with Explicit Headers
 **File**: `/home/pi/pisrv_vapor_docker/EdgeInfer/Sources/App/configure.swift`
 
-**CHANGE FROM**:
+**REPLACE THE ENTIRE HEALTHZ SECTION WITH**:
 ```swift
-app.get("healthz") { req async throws -> [String: Any] in
-    let formatter = ISO8601DateFormatter()
-    return [
-        "status": "healthy",
-        "timestamp": formatter.string(from: Date()),
-        "service": "EdgeInfer", 
-        "version": "1.0.0"
-    ]
+// Register health check endpoint with explicit headers (fixes empty reply issue)
+app.get("healthz") { req -> Response in
+    var buf = req.byteBufferAllocator.buffer(capacity: 2)
+    buf.writeString("OK")
+    var headers = HTTPHeaders()
+    headers.add(name: .contentType, value: "text/plain; charset=utf-8")
+    headers.add(name: .contentLength, value: String(buf.readableBytes))
+    headers.add(name: .connection, value: "close") // ensure immediate flush
+    return Response(status: .ok, headers: headers, body: .init(buffer: buf))
+}
+
+// HEAD support for health check (wget --spider compatibility)
+app.on(.HEAD, "healthz") { req -> Response in
+    var headers = HTTPHeaders()
+    headers.add(name: .contentLength, value: "0")
+    headers.add(name: .connection, value: "close")
+    return Response(status: .ok, headers: headers)
 }
 ```
 
-**CHANGE TO**:
-```swift
-app.get("healthz") { req async throws -> String in
-    return "OK"
-}
-```
-
-### Fix 2: Update Docker Health Check
+### Fix 2: Update Docker Health Check to Status-Only
 **File**: `/home/pi/pisrv_vapor_docker/EdgeInfer/Dockerfile`
 
 **CHANGE FROM**:
 ```dockerfile
 HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=90s \
-  CMD wget -q -O- http://localhost:8080/healthz >/dev/null || exit 1
+  CMD curl -f http://localhost:8080/healthz || exit 1
 ```
 
 **CHANGE TO**:
 ```dockerfile
-HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=90s \
-  CMD curl -f http://localhost:8080/healthz || exit 1
+HEALTHCHECK --interval=30s --timeout=8s --retries=3 --start-period=90s \
+  CMD curl -fsS -m 6 -o /dev/null http://localhost:8080/healthz || exit 1
 ```
 
 ## Implementation Steps
@@ -63,21 +67,29 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=90s \
    git pull
    ```
 
-3. **Rebuild EdgeInfer with fixed Dockerfile**:
+3. **Rebuild EdgeInfer with ChatGPT fix**:
    ```bash
    docker-compose build edge-infer
    docker-compose up -d edge-infer
    ```
 
-4. **Verify fix**:
+4. **Verify ChatGPT fix worked**:
    ```bash
-   # Container should show "healthy" status within 30-60 seconds
+   # Wait for 90s startup period
+   sleep 90
+   
+   # Container should show "healthy" status (not "starting")
    docker ps | grep edge-infer
    
-   # Health check should return JSON
-   curl -s http://localhost:8080/healthz
+   # Health check should return "OK" with proper headers
+   curl -v http://localhost:8080/healthz
+   # Expected: HTTP/1.1 200 OK, Content-Length: 2, Body: "OK"
    
-   # Test session persistence (should work without "Session not found" errors)
+   # HEAD request should work (wget --spider compatibility)
+   curl -I http://localhost:8080/healthz
+   # Expected: HTTP/1.1 200 OK, Content-Length: 0, no body
+   
+   # Test session persistence (no more empty replies!)
    curl -X POST "http://localhost:8080/api/v1/analysis/start" -H "Content-Type: application/json" -d '{}'
    ```
 

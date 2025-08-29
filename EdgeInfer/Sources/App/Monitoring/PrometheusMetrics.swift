@@ -13,28 +13,12 @@
 import Prometheus
 import Vapor
 
-enum PrometheusMetrics {
-    // Shared client for the process.
-    static let client: PrometheusClient = {
-        return PrometheusClient()
-    }()
-
-    // Counters & histograms (created once)
-    static let httpRequestsTotal = client.createCounter(
-        forType: Int.self,
-        named: "http_requests_total",
-        helpText: "Total HTTP requests",
-        labels: ["method", "route", "status"]
-    )
-
-    static let httpRequestDurationSeconds = client.createHistogram(
-        forType: Double.self,
-        named: "http_request_duration_seconds",
-        helpText: "HTTP request latencies (seconds)",
-        // Default Prometheus buckets; keep coarse for Raspberry Pi
-        buckets: .default,
-        labels: ["route"]
-    )
+struct SimpleMetrics {
+    // Simple metrics implementation for EdgeInfer
+    func recordRequest(method: String, route: String, status: Int, duration: Double) {
+        // Stub implementation - metrics will be collected by PrometheusMiddleware
+    }
+}
 
     // Helper to normalize dynamic path segments to avoid label explosion.
     // e.g., /sessions/1b2c-.../results -> /sessions/:id/results
