@@ -21,9 +21,23 @@ public func configure(_ app: Application) async throws {
     
     // MARK: - Route Registration
     
-    // Register health check endpoint (required for Docker health check)
-    app.get("healthz") { req async throws -> String in
-        return "OK"
+    // Register health check endpoint with explicit headers (fixes empty reply issue)
+    app.get("healthz") { req -> Response in
+        var buf = req.byteBufferAllocator.buffer(capacity: 2)
+        buf.writeString("OK")
+        var headers = HTTPHeaders()
+        headers.add(name: .contentType, value: "text/plain; charset=utf-8")
+        headers.add(name: .contentLength, value: String(buf.readableBytes))
+        headers.add(name: .connection, value: "close") // ensure immediate flush
+        return Response(status: .ok, headers: headers, body: .init(buffer: buf))
+    }
+    
+    // HEAD support for health check (wget --spider compatibility)
+    app.on(.HEAD, "healthz") { req -> Response in
+        var headers = HTTPHeaders()
+        headers.add(name: .contentLength, value: "0")
+        headers.add(name: .connection, value: "close")
+        return Response(status: .ok, headers: headers)
     }
     
     // Register enhanced Prometheus metrics endpoint

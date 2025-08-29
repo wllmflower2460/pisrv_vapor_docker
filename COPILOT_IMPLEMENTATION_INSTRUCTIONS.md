@@ -1,28 +1,54 @@
-# Copilot Implementation Instructions: Fix EdgeInfer Health Check
+# Copilot Implementation Instructions: Fix EdgeInfer Health Check Empty Response
 
 ## Problem Summary
-EdgeInfer is **fully functional** but Docker health check timeouts (3s) are too aggressive, causing container restart loops that clear sessions and make the API appear unstable.
+EdgeInfer health check endpoint `/healthz` returns "Empty reply from server" (curl error 52) despite:
+- ✅ Service running normally
+- ✅ `/metrics` endpoint working perfectly  
+- ✅ Prometheus metrics showing 200 OK responses
+- ❌ Health check consistently failing with empty responses
 
-## Required Fix
-**File**: `/home/pi/pisrv_vapor_docker/EdgeInfer/Dockerfile`  
-**Section**: HEALTHCHECK directive  
-**Line**: 50 (--timeout=3s)
+## Root Cause Identified
+The `/healthz` endpoint returns `[String: Any]` requiring JSON serialization, while `/metrics` returns simple `String`. The JSON serialization is causing the empty response issue.
 
-## Exact Changes Needed
+## Required Fixes
 
-Replace the existing Dockerfile health check:
-```dockerfile
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD curl -fsS http://localhost:8080/healthz || exit 1
+### Fix 1: Simplify Health Endpoint Response
+**File**: `/home/pi/pisrv_vapor_docker/EdgeInfer/Sources/App/configure.swift`
+
+**CHANGE FROM**:
+```swift
+app.get("healthz") { req async throws -> [String: Any] in
+    let formatter = ISO8601DateFormatter()
+    return [
+        "status": "healthy",
+        "timestamp": formatter.string(from: Date()),
+        "service": "EdgeInfer", 
+        "version": "1.0.0"
+    ]
+}
 ```
 
-With this updated configuration:
-```dockerfile
-HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=30s \
-  CMD curl -fsS http://localhost:8080/healthz || exit 1
+**CHANGE TO**:
+```swift
+app.get("healthz") { req async throws -> String in
+    return "OK"
+}
 ```
 
-**Note**: Dockerfile HEALTHCHECK overrides docker-compose healthcheck settings!
+### Fix 2: Update Docker Health Check
+**File**: `/home/pi/pisrv_vapor_docker/EdgeInfer/Dockerfile`
+
+**CHANGE FROM**:
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=90s \
+  CMD wget -q -O- http://localhost:8080/healthz >/dev/null || exit 1
+```
+
+**CHANGE TO**:
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=90s \
+  CMD curl -f http://localhost:8080/healthz || exit 1
+```
 
 ## Implementation Steps
 
