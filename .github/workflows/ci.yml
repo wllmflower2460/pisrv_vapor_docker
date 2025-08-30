@@ -17,6 +17,8 @@ jobs:
       image: swift:${{ matrix.swift }}-jammy
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Show Swift version
         run: swift --version

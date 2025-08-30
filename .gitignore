@@ -1,6 +1,7 @@
 .build/
 .swiftpm/
-Package.resolved
+# Track Package.resolved for reproducible CI builds
+!Package.resolved
 .DS_Store
 *.log
 *.xcodeproj/
