@@ -1,0 +1,30 @@
+name: Canary (Swift 6.1)
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  canary-swift-6_1:
+    name: Canary (Swift 6.1, allow-failure)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    container:
+      image: swift:6.1-jammy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Show versions
+        run: |
+          swift --version
+          git submodule status || true
+      - name: Resolve
+        run: swift package resolve
+      - name: Test (discovery)
+        run: swift test -v --enable-test-discovery --jobs 2
+      - name: Summary
+        if: always()
+        run: echo "Swift 6.1 canary job completed (allowed to fail)."
