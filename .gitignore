@@ -18,4 +18,4 @@ app.db
 db.sqlite
 imu.json
 sample.mp4
-Tests/LinuxMain.swift
+#! Removed explicit ignore of Tests/LinuxMain.swift to allow placeholder explanatory file for Swift 6 test discovery stability
