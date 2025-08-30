@@ -148,6 +148,9 @@ public func routes(_ app: Application) throws {
 
         return UploadAck(sessionID: sid)
     }
+
+    // Analysis (temporary stub integration)
+    try app.register(collection: AnalysisController())
 }
 
 /*

@@ -3,11 +3,13 @@ import XCTest
 
 final class AppTests: XCTestCase {
     func testNothing() throws {
-        // Add your tests here
         XCTAssert(true)
     }
-
-    static let allTests = [
-        ("testNothing", testNothing)
-    ]
+#if !os(macOS)
+    static var allTests: [(String, (AppTests) -> () throws -> Void)] {
+        [
+            ("testNothing", testNothing)
+        ]
+    }
+#endif
 }

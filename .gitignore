@@ -18,3 +18,4 @@ app.db
 db.sqlite
 imu.json
 sample.mp4
+Tests/LinuxMain.swift
