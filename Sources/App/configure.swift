@@ -17,6 +17,12 @@ public func configure(_ app: Application) throws {
     // Set log level early
     app.logger.logLevel = .info
 
+    // HTTP client timeouts for sidecar model calls
+    app.http.client.configuration.timeout = .init(
+        connect: .seconds(2),
+        read: .milliseconds(45)
+    )
+
     // Boot diagnostics
     let apiKeys = (Environment.get("API_KEY") ?? "")
         .split(separator: ",")

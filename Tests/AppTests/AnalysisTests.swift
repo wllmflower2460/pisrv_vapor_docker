@@ -44,14 +44,5 @@ final class AnalysisTests: XCTestCase {
             XCTAssertEqual(res.status, .ok)
         }
     }
-#if !os(macOS)
-    static var allTests: [(String, (AnalysisTests) -> () throws -> Void)] {
-        [
-            ("testMotifs_StubPath", testMotifs_StubPath),
-            ("testMotifs_RealFlagButNoBackendFallsBack", testMotifs_RealFlagButNoBackendFallsBack),
-            ("testHealthz", testHealthz)
-        ]
-    }
-#endif
 
 }

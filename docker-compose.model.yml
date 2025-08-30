@@ -1,4 +1,11 @@
 services:
+  SERVICE:
+    environment:
+      - USE_REAL_MODEL=false
+      - MODEL_BACKEND_URL=http://model-runner:8000
+    depends_on:
+      - model-runner
+
   model-runner:
     build: ./model-runner
     volumes:
@@ -6,10 +13,3 @@ services:
     environment:
       - MODEL_DIR=/models
     restart: unless-stopped
-
-  api:
-    environment:
-      - USE_REAL_MODEL=false
-      - MODEL_BACKEND_URL=http://model-runner:8000
-    depends_on:
-      - model-runner
