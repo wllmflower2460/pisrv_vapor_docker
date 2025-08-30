@@ -1,13 +1,7 @@
 import App
 import XCTest
 
-final class AppTests: XCTestCase {
-    func testNothing() throws {
-        // Add your tests here
-        XCTAssert(true)
-    }
-
-    static let allTests = [
-        ("testNothing", testNothing)
-    ]
+// Renamed to avoid potential collision with legacy EdgeInfer/AppTests class names.
+final class SmokeTests: XCTestCase {
+    func testTrivial() throws { XCTAssertTrue(true) }
 }

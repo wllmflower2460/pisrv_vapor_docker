@@ -1,48 +1,40 @@
-// swift-tools-version:5.9
+// swift-tools-version:5.10
 import PackageDescription
 
 let package = Package(
-    name: "VaporApp",
-    platforms: [
-        .macOS(.v12)
-    ],
+    name: "EdgeInfer",
+    platforms: [ .macOS(.v13) ],
     products: [
-        .library(
-            name: "VaporApp",
-            targets: ["App"]
-        ),
-        .executable(
-            name: "Run",
-            targets: ["Run"]
-        ),
+        .executable(name: "Run", targets: ["Run"])
     ],
     dependencies: [
-        // 💧 Vapor framework
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.83.0"),
-        // 🔵 Fluent ORM core
-        .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
-        // 🔵 Fluent SQLite-driver for Vapor
-        .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.4.0"),
+        // Vapor core only (Fluent removed)
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.83.0")
     ],
     targets: [
-    .target(
-        name: "App",
-        dependencies: [
-            .product(name: "Vapor", package: "vapor"),
-            .product(name: "Fluent", package: "fluent"),
-            .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
-        ],
-        path: "Sources/App"
-    ),
-    .executableTarget(
-        name: "Run",
-        dependencies: ["App"],
-        path: "Sources/Run"
-    ),
-    .testTarget(
-        name: "AppTests",
-        dependencies: ["App"],
-        path: "Tests/AppTests"
-    ),
-]
+        .target(
+            name: "App",
+            dependencies: [ .product(name: "Vapor", package: "vapor") ],
+            path: "Sources/App",
+            exclude: [
+                // Exclude legacy Todo components if still present
+                "Controllers/TodoController.swift",
+                "Migrations/CreateTodo.swift",
+                "Models/Todo.swift"
+            ]
+        ),
+        .executableTarget(
+            name: "Run",
+            dependencies: ["App"],
+            path: "Sources/Run"
+        ),
+        .testTarget(
+            name: "AppTests",
+            dependencies: [
+                "App",
+                .product(name: "XCTVapor", package: "vapor")
+            ],
+            path: "Tests/AppTests"
+        ),
+    ]
 )

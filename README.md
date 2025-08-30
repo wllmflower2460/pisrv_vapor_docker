@@ -1,57 +1,97 @@
-# Grafana & Prometheus Provisioning (PiSrv)
+<!-- Badges (populate after first green CI run on main) -->
+![CI Swift 5.10](https://img.shields.io/github/actions/workflow/status/wllmflower2460/pisrv_vapor_docker/ci.yml?label=Swift%205.10&branch=main)
+![CI Swift 6.0](https://img.shields.io/github/actions/workflow/status/wllmflower2460/pisrv_vapor_docker/ci.yml?label=Swift%206.0&branch=main)
 
-This bundle gives you:
-- **Grafana dashboards provisioning** (auto-load dashboard JSONs on startup)
-- **Grafana Prometheus datasource** (optional)
-- **Prometheus alert rules** (error rate, latency p95, and no-traffic)
+# EdgeInfer Service
 
-## Layout
+Minimal Vapor-based inference edge service with feature‑flagged model sidecar, fast fallback, and multi‑Swift CI.
 
+## Features
+- HTTP API for submitting analysis windows (see routes under `/analysis`).
+- Feature flags:
+  - `USE_REAL_MODEL` (default `false`): toggles calling external model sidecar.
+  - `MODEL_BACKEND_URL` (default `http://localhost:9000/infer`): sidecar inference endpoint.
+- Graceful fallback: network / non‑200 / decode failures yield deterministic stub motifs.
+- Fast fallback path test ensures sub‑100ms error handling on connection refusal.
+- Clean codebase: Fluent / Todo scaffold removed.
+- Concurrency future‑proofing: CI will run Swift 5.10 and 6.0 with strict concurrency checks.
+- Rollback + pre‑PR check docs included.
+
+## Architecture Overview
 ```
-/etc/grafana/provisioning/
-  dashboards/
-    pisrv/
-      grafana_pisrv_prometheus_dashboard.json   # put the JSON here
-    dashboards-pisrv.yaml                       # from this bundle
-  datasources/
-    datasource-prometheus.yaml                  # from this bundle (optional)
+Client --> Vapor API --> (if USE_REAL_MODEL) HTTP -> Sidecar (/infer)
+                               | failure
+                               v
+                          Fallback Stub
+```
+`ModelInferenceService` handles request encoding / response decoding and error normalization.
 
-/etc/prometheus/
-  rules/
-    prometheus_rules_pisrv.yml                  # from this bundle
-prometheus.yml                                   # add 'rule_files' entry
+## Endpoints (core)
+- `GET /healthz` – liveness.
+- `POST /analysis/motifs` – submit JSON payload with `window` (array of floats); returns motif scores.
+
+## Fallback Logic
+Any of: connection error, timeout, non‑2xx HTTP, malformed JSON → fallback scorer returns static deterministic values (stable for tests / monitoring).
+
+## Testing
+9 XCTest cases cover:
+- Inference success path (mocked sidecar).
+- Non‑200 and malformed JSON → fallback.
+- DNS / connection refusal fast failure (< ~60ms expected).
+- Real path flag toggle.
+- Health & smoke.
+
+Run locally:
+```bash
+swift test --parallel
 ```
 
-## Steps
+## CI (after PR B)
+Matrix: Swift 5.10-jammy & 6.0-jammy.
+Flags: `-Xswiftc -strict-concurrency=complete` for build + test.
+Both jobs become required checks on `main`.
 
-### 1) Grafana
-1. Copy `dashboards-pisrv.yaml` to `/etc/grafana/provisioning/dashboards/`.
-2. Create folder `/etc/grafana/provisioning/dashboards/pisrv/` and place your dashboard JSON(s) in it (e.g., `grafana_pisrv_prometheus_dashboard.json`).
-3. (Optional) Copy `datasource-prometheus.yaml` to `/etc/grafana/provisioning/datasources/` and edit the `url` if Prometheus is not at `http://prometheus:9090`.
-4. Restart Grafana: `sudo systemctl restart grafana-server` (or docker restart).
+## Feature Flags
+| Flag | Purpose | Default |
+|------|---------|---------|
+| `USE_REAL_MODEL` | Enable sidecar inference call | false |
+| `MODEL_BACKEND_URL` | Sidecar inference endpoint | http://localhost:9000/infer |
 
-### 2) Prometheus
-1. Copy `prometheus_rules_pisrv.yml` to `/etc/prometheus/rules/`.
-2. Edit `prometheus.yml` to include:
-   ```yaml
-   rule_files:
-     - /etc/prometheus/rules/prometheus_rules_pisrv.yml
-   ```
-3. Restart Prometheus.
+## Local Development
+Build & run:
+```bash
+swift build
+swift run
+```
+With real model (assuming sidecar on localhost:9000):
+```bash
+USE_REAL_MODEL=true swift run
+```
 
-### Alert Details
-- **PiSrvHighErrorRate**: 4xx/5xx > **5%** for **5m**.
-- **PiSrvLatencyP95High**: p95 latency > **0.5s** for **10m**.
-- **PiSrvNoTraffic**: zero total request rate for **10m** (fires after 15m).
+Sample request:
+```bash
+curl -s -X POST localhost:8080/analysis/motifs \
+  -H 'Content-Type: application/json' \
+  -d '{"window":[0.12,0.34,0.56]}' | jq .
+```
 
-### Notes
-- If you want **route-specific** alerts, add `by (route)` to the PromQL aggregations and set labels in annotations.
-- Ensure your Vapor app exposes `/metrics` and Prometheus scrapes it:
-  ```yaml
-  scrape_configs:
-    - job_name: 'pisrv'
-      static_configs:
-        - targets: ['<pi-ip>:8080']
-      metrics_path: /metrics
-      scrape_interval: 15s
-  ```
+## Rollback
+See `ROLLBACK.md` for revert & previous tag deployment instructions.
+
+## Metrics
+Motifs metrics stub present (NO-OP). Prometheus noisy placeholders removed; future real metrics can attach here.
+
+## Deployment Notes
+- Container image built from `Dockerfile` (multi-stage: builder + slim runtime if configured).
+- Set `USE_REAL_MODEL=true` only when sidecar health is proven; otherwise rely on fallback.
+
+## Future Work
+- Address remaining Swift 6 Sendable/isolation warnings.
+- Implement real metrics emission (latency histogram, fallback counter).
+- Expose structured tracing headers.
+
+## Contributing
+See `CONTRIBUTING.md` and `pre-PR.md` checklist.
+
+## License
+Project inherits licensing terms from included source; see repository root for any LICENSE file.

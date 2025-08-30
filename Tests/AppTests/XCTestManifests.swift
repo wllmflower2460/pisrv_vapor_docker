@@ -1,0 +1,1 @@
+// Deprecated: manifest not needed with test discovery; kept empty.
