@@ -58,6 +58,12 @@ public func configure(_ app: Application) async throws {
     
     // MARK: - Application Configuration
     
+    // Configure HTTP client timeouts for model inference
+    app.http.client.configuration.timeout = .init(
+        connect: .seconds(2),
+        read: .milliseconds(45)
+    )
+    
     // Configure server
     app.http.server.configuration.hostname = "0.0.0.0"
     app.http.server.configuration.port = 8080

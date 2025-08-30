@@ -57,15 +57,14 @@ struct AnalysisController: RouteCollection {
         // If we have enough samples, use real AI inference
         if latestSamples.count >= 100 {
             do {
-                let inferenceResult = try await ModelInferenceService.analyzeIMUWindow(latestSamples)
+                let inferenceResult = try await ModelInferenceService.analyzeIMUWindow(req, samples: latestSamples)
                 
-                // Convert raw motifs to Motif objects (simplified mapping)
+                // Convert motif scores to Motif objects
                 var motifs: [Motif] = []
-                for (index, motifArray) in inferenceResult.motifs.enumerated() {
-                    let averageScore = motifArray.reduce(0, +) / Double(motifArray.count)
+                for (index, score) in inferenceResult.motif_scores.enumerated() {
                     let motif = Motif(
                         id: "m\(index + 1)",
-                        score: averageScore,
+                        score: Double(score),
                         confidence: 0.8 + Double.random(in: -0.1...0.15),
                         duration_ms: Int.random(in: 300...900),
                         description: "motif_\(index + 1)"
@@ -110,7 +109,7 @@ struct AnalysisController: RouteCollection {
         
         do {
             // Use real TCN-VAE model inference for activity prediction
-            let _ = try await ModelInferenceService.analyzeIMUWindow(samples)
+            let inferenceResult = try await ModelInferenceService.analyzeIMUWindow(req, samples: samples)
             
             // Create SynchronyMetrics from inference result (simplified for now)
             let synchronyMetrics = SynchronyMetrics(

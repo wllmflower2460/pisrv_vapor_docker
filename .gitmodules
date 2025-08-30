@@ -1,0 +1,4 @@
+[submodule "appdata/models/tcn_vae"]
+	path = appdata/models/tcn_vae
+	url = https://github.com/wllmflower2460/TCN-VAE_models.git
+	branch = main
