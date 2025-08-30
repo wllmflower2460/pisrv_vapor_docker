@@ -1,3 +1,7 @@
+<!-- Badges (populate after first green CI run on main) -->
+![CI Swift 5.10](https://img.shields.io/github/actions/workflow/status/wllmflower2460/pisrv_vapor_docker/ci.yml?label=Swift%205.10&branch=main)
+![CI Swift 6.0](https://img.shields.io/github/actions/workflow/status/wllmflower2460/pisrv_vapor_docker/ci.yml?label=Swift%206.0&branch=main)
+
 # EdgeInfer Service
 
 Minimal Vapor-based inference edge service with feature‑flagged model sidecar, fast fallback, and multi‑Swift CI.
