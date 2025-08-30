@@ -26,6 +26,9 @@ encoder.eval() if encoder else None
 class Window(BaseModel):
     x: list[list[float]]  # (T,9) IMU window
 
+# Length of latent vector expected from encoder; used for fallback zeros if model missing.
+FALLBACK_LATENT_DIM = 32
+
 app = FastAPI()
 
 @app.get("/healthz")
@@ -35,7 +38,7 @@ def health():
 @app.post("/infer")
 def infer(win: Window):
     if encoder is None:
-        z = np.zeros(32, dtype=np.float32)
+        z = np.zeros(FALLBACK_LATENT_DIM, dtype=np.float32)
     else:
         x = np.asarray(win.x, dtype=np.float32)
         x = torch.from_numpy(x).unsqueeze(0)
