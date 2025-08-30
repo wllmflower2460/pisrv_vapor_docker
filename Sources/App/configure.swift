@@ -17,11 +17,15 @@ public func configure(_ app: Application) throws {
     // Set log level early
     app.logger.logLevel = .info
 
-    // HTTP client timeouts for sidecar model calls
-    app.http.client.configuration.timeout = .init(
-        connect: .seconds(2),
-        read: .milliseconds(45)
-    )
+        // Determine test mode early
+        let isTest = app.environment == .testing || Environment.get("TEST_MODE") == "1"
+
+        // HTTP client timeouts (tighter in tests)
+        if isTest {
+            app.http.client.configuration.timeout = .init(connect: .seconds(1), read: .seconds(2))
+        } else {
+            app.http.client.configuration.timeout = .init(connect: .seconds(2), read: .milliseconds(45))
+        }
 
     // Boot diagnostics
     let apiKeys = (Environment.get("API_KEY") ?? "")
@@ -39,18 +43,18 @@ public func configure(_ app: Application) throws {
     app.middleware.use(ErrorMiddleware.default(environment: app.environment))
     app.middleware.use(AccessLogMiddleware()) // Log each request
 
-    // SQLite setup - ensure sessions directory exists
-    try FileManager.default.createDirectory(atPath: sessionsDir, withIntermediateDirectories: true, attributes: nil)
-
-    let dbPath = sessionsDir + "/app.db"
-    app.databases.use(.sqlite(.file(dbPath)), as: .sqlite)
-    app.logger.info("SQLite path: \(dbPath)")
-
-    // Migrations
-    app.migrations.add(CreateTodo())
-
-    // Run migrations on startup
-    try app.autoMigrate().wait()
+        if isTest {
+            // In-memory DB and skip migrations for faster, side-effect free tests
+            app.logger.info("[configure] Test mode: using in-memory SQLite and skipping migrations")
+            app.databases.use(.sqlite(.memory), as: .sqlite)
+        } else {
+        try FileManager.default.createDirectory(atPath: sessionsDir, withIntermediateDirectories: true, attributes: nil)
+        let dbPath = sessionsDir + "/app.db"
+        app.databases.use(.sqlite(.file(dbPath)), as: .sqlite)
+        app.logger.info("SQLite path: \(dbPath)")
+        app.migrations.add(CreateTodo())
+        try app.autoMigrate().wait()
+    }
 
     // Routes
     try routes(app)
