@@ -35,6 +35,15 @@ struct Motif: Content {
     let confidence: Double?
     let duration_ms: Int?
     let description: String?
+    
+    // Constructor for stub motifs
+    init(id: String, score: Double, confidence: Double? = nil, duration_ms: Int? = nil, description: String? = nil) {
+        self.id = id
+        self.score = score
+        self.confidence = confidence
+        self.duration_ms = duration_ms
+        self.description = description
+    }
 }
 
 struct MotifsResponse: Content {
@@ -62,6 +71,15 @@ struct MotifsResponse: Content {
             )
         }
     }
+    
+    // Constructor for real AI-generated motifs
+    init(sessionId: String, realMotifs: [Motif], analysisWindowMs: Int = 1000) {
+        self.sessionId = sessionId
+        self.topK = realMotifs.count
+        self.timestamp = Date().timeIntervalSince1970
+        self.analysisWindowMs = analysisWindowMs
+        self.motifs = realMotifs
+    }
 }
 
 struct SynchronyResponse: Content {
@@ -82,6 +100,24 @@ struct SynchronyResponse: Content {
         self.lag_ms = Int.random(in: 40...120) // Realistic reaction lag
         self.confidence = 0.75 + Double.random(in: -0.10...0.20)
     }
+    
+    // Constructor for real AI-generated synchrony
+    init(sessionId: String, realSynchrony: SynchronyMetrics) {
+        self.sessionId = sessionId
+        self.r = realSynchrony.r
+        self.lag_ms = realSynchrony.lag_ms
+        self.window_ms = realSynchrony.window_ms
+        self.timestamp = Date().timeIntervalSince1970
+        
+        // Calculate confidence based on correlation strength
+        self.confidence = min(0.95, abs(realSynchrony.r) + 0.5)
+    }
+}
+
+struct SynchronyMetrics {
+    let r: Double            // correlation coefficient (-1 to 1)
+    let lag_ms: Int         // estimated lag in milliseconds  
+    let window_ms: Int      // analysis window size
 }
 
 struct SessionStopResponse: Content {
@@ -119,6 +155,10 @@ struct Session {
     var duration: TimeInterval {
         Date().timeIntervalSince(startTime)
     }
+    
+    func getLatestSamples(count: Int) -> [IMUSample] {
+        return Array(samples.suffix(count))
+    }
 }
 
 // MARK: - Thread-Safe Session Store
@@ -151,6 +191,15 @@ actor SessionStore {
     
     func getActiveSessions() -> [String] {
         return Array(sessions.keys)
+    }
+    
+    func getLatestSamples(sessionId: String, count: Int) -> [IMUSample] {
+        guard let session = sessions[sessionId] else {
+            return []
+        }
+        
+        let samples = session.samples
+        return Array(samples.suffix(count))
     }
     
     func cleanup(olderThan interval: TimeInterval = 3600) {

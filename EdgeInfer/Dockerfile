@@ -23,16 +23,19 @@ COPY Sources ./Sources
 # Build the application
 RUN swift build -c release --static-swift-stdlib
 
-# Runtime stage - minimal Ubuntu with Hailo readiness
+# Runtime stage - minimal Ubuntu with Python for AI inference
 FROM ubuntu:22.04
 
-# Install runtime dependencies
+# Install runtime dependencies including Python
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libssl3 \
     libatomic1 \
     ca-certificates \
     curl \
     wget \
+    python3 \
+    python3-pip \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -41,7 +44,18 @@ WORKDIR /run
 # Copy the built binary
 COPY --from=build /app/.build/release/EdgeInfer /run/EdgeInfer
 
+# Copy TCN-VAE models and inference service
+COPY TCN-VAE_models/ /run/EdgeInfer/TCN-VAE_models/
+
+# Set up Python virtual environment for inference
+RUN cd /run/EdgeInfer/TCN-VAE_models && \
+    python3 -m venv tcn_env && \
+    tcn_env/bin/pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    tcn_env/bin/pip install --no-cache-dir scikit-learn numpy && \
+    chmod +x inference_service.py
+
 # Create hailo mount point (ready for future integration)
+RUN mkdir -p /opt/hailo
 RUN mkdir -p /opt/hailo
 
 # Expose port
