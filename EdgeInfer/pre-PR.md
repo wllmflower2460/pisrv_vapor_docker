@@ -24,4 +24,14 @@ The PR body looks complete. All mentioned files are present and match the descri
 ## Immediate Action
 Files are staged and ready to push. The PR body accurately describes what's included.
 
+## Kill-Switch Documentation
+
+**🔴 USE_REAL_MODEL=false** is your emergency kill-switch:
+- **Default**: `false` (safe stub mode)
+- **Production**: Keep as `false` until thorough testing
+- **Rollback**: Simply set to `false` and redeploy (no rebuild needed)
+- **Performance**: Stub mode ~5ms vs real inference ~45ms
+
+See `ROLLBACK.md` for complete emergency procedures.
+
 **Note**: Avoided Package.swift changes to prevent conflicts with your current sprint work.
