@@ -18,4 +18,4 @@ app.db
 db.sqlite
 imu.json
 sample.mp4
-Tests/LinuxMain.swift
+#! Allow Tests/LinuxMain.swift (Swift 6 discovery anchor) to be tracked
