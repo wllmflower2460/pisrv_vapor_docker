@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        swift: [ "5.10", "6.0" ]
+    container:
+      image: swift:${{ matrix.swift }}-jammy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Resolve
+        run: swift package resolve
+
+      - name: Test (discovery)
+        run: swift test -v --enable-test-discovery --jobs 2
+
+      # Optional SPM cache (example, disabled)
+      # - uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       .build
+      #       .swiftpm
+      #     key: ${{ runner.os }}-spm-${{ matrix.swift }}-${{ hashFiles('**/Package.resolved') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-spm-${{ matrix.swift }}-
+
+      - name: Summary
+        if: always()
+        run: echo "Swift ${{ matrix.swift }} CI complete."
