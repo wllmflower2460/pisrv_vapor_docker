@@ -1,6 +1,4 @@
 import Foundation
-import Fluent
-import FluentSQLiteDriver
 import Vapor
 
 /// A description
@@ -43,18 +41,12 @@ public func configure(_ app: Application) throws {
     app.middleware.use(ErrorMiddleware.default(environment: app.environment))
     app.middleware.use(AccessLogMiddleware()) // Log each request
 
+        // Fluent/SQLite removed: no database configuration required currently.
         if isTest {
-            // In-memory DB and skip migrations for faster, side-effect free tests
-            app.logger.info("[configure] Test mode: using in-memory SQLite and skipping migrations")
-            app.databases.use(.sqlite(.memory), as: .sqlite)
+            app.logger.info("[configure] Test mode: no DB (Fluent removed)")
         } else {
-        try FileManager.default.createDirectory(atPath: sessionsDir, withIntermediateDirectories: true, attributes: nil)
-        let dbPath = sessionsDir + "/app.db"
-        app.databases.use(.sqlite(.file(dbPath)), as: .sqlite)
-        app.logger.info("SQLite path: \(dbPath)")
-    // Legacy Todo migration removed (excluded from build). If future migrations are added, register here.
-    // try app.autoMigrate().wait()
-    }
+            try FileManager.default.createDirectory(atPath: sessionsDir, withIntermediateDirectories: true, attributes: nil)
+        }
 
     // Routes
     try routes(app)
