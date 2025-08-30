@@ -32,7 +32,13 @@ let package = Package(
             .product(name: "Fluent", package: "fluent"),
             .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
         ],
-        path: "Sources/App"
+        path: "Sources/App",
+        exclude: [
+            // Exclude legacy sample Todo feature (controller/model/migration) to silence warnings & reduce build.
+            "Controllers/TodoController.swift",
+            "Migrations/CreateTodo.swift",
+            "Models/Todo.swift"
+        ]
     ),
     .executableTarget(
         name: "Run",
