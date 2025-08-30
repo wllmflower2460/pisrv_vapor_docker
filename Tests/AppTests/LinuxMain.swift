@@ -1,1 +1,1 @@
-// Placeholder LinuxMain removed. Using SwiftPM automatic test discovery (Swift 5.9+). No manual main here.
+// (Removed in favor of SwiftPM automatic test discovery)
