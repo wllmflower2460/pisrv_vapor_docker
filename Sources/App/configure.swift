@@ -52,8 +52,8 @@ public func configure(_ app: Application) throws {
         let dbPath = sessionsDir + "/app.db"
         app.databases.use(.sqlite(.file(dbPath)), as: .sqlite)
         app.logger.info("SQLite path: \(dbPath)")
-        app.migrations.add(CreateTodo())
-        try app.autoMigrate().wait()
+    // Legacy Todo migration removed (excluded from build). If future migrations are added, register here.
+    // try app.autoMigrate().wait()
     }
 
     // Routes
