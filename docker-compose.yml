@@ -1,45 +1,15 @@
 services:
-  # Existing Todo API service
-  api:
-    image: vapor-app:latest
-    container_name: vapor
-    user: "1000:1000"  # Run as pi user to match file permissions
-    ports:
-      - "8082:8080"
-    volumes:
-      - /home/pi/appdata/sessions:/var/app/sessions
-    environment:
-      # Optional, but nice to be explicit
-      LOG_LEVEL: info
-      SESSIONS_DIR: /var/app/sessions
-      # API_KEY: "supersecret123"   # commented out to allow all requests
-    restart: unless-stopped
-    healthcheck:
-      # Checks *inside* the container on the container port
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
-      interval: 30s
-      timeout: 2s
-      retries: 3
-      start_period: 5s
-    # Optional: keep logs from growing forever
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # EdgeInfer service for Hailo-8 behavioral analysis
   edge-infer:
-    build: 
+    build:
       context: ./EdgeInfer
       dockerfile: Dockerfile
     container_name: edge-infer
-    init: true  # Handle zombie processes
-    user: "1000:1000"  # Run as pi user
+    init: true
+    user: "1000:1000"
     ports:
-      - "8080:8080"   # EdgeInfer on port 8080 (as per your plan)
+      - "8080:8080"
     volumes:
-      - /opt/hailo:/opt/hailo:ro  # Future HailoRT integration
+      - /opt/hailo:/opt/hailo:ro
     environment:
       LOG_LEVEL: info
       PORT: 8080
@@ -50,7 +20,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 90s  # Generous Pi startup time for Swift warm-up
+      start_period: 90s
     deploy:
       resources:
         limits:
@@ -59,6 +29,33 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    image: vapor-app:latest
+    container_name: vapor
+    user: "1000:1000"
+    ports:
+      - "8082:8080"
+    volumes:
+      - /home/pi/appdata/sessions:/var/app/sessions
+    environment:
+      LOG_LEVEL: info
+      SESSIONS_DIR: /var/app/sessions
+    restart: unless-stopped
+    depends_on:
+      edge-infer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
     logging:
       driver: "json-file"
       options:
