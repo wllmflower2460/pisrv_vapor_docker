@@ -15,17 +15,19 @@ permissions:
 
 env:
   REQUIRED_SUBMODULE: DataDogsServer/h8-examples
-  EXPECT_EXACTLY_ONE: "false"
+  EXPECT_EXACTLY_ONE: "false"   # set to "true" to enforce only one gitlink
 
 jobs:
   build-and-test:
     strategy:
       matrix:
         os: [ ubuntu-latest ]
-        swift: [ "6.0.2", "5.10.1" ]
+        swift: [ "6.0.2", "5.10.1" ]   # 5.10 acts as a compatibility probe
+    # Allow the probe to fail without failing the whole check
     continue-on-error: ${{ startsWith(matrix.swift, '5.') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+
     steps:
       - name: Checkout (recursive with submodules)
         uses: actions/checkout@v4
@@ -44,11 +46,14 @@ jobs:
         run: |
           set -euo pipefail
           gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
-          echo "Found gitlinks:"; echo "$gitlinks"
+          echo "Found gitlinks:"
+          echo "$gitlinks"
           echo "$gitlinks" | grep -qx "$REQUIRED_SUBMODULE"
+
           if [ "${EXPECT_EXACTLY_ONE}" = "true" ]; then
             cnt="$(echo "$gitlinks" | wc -l | tr -d ' ')"
-            echo "Gitlink count: $cnt"; test "$cnt" -eq 1
+            echo "Gitlink count: $cnt"
+            test "$cnt" -eq 1
           fi
 
       - name: Set up Swift
@@ -85,6 +90,7 @@ jobs:
       - name: Test
         run: swift test --parallel --disable-sandbox
 
+  # Lightweight canary on pushes: quick signal, won’t fail PRs
   canary-resolve:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
