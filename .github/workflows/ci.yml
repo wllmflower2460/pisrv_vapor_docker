@@ -12,7 +12,8 @@ permissions:
 
 env:
   ALLOWED_GITLINKS: |
-    DataDogsServer/h8-examples
+  DataDogsServer/h8-examples
+  EdgeInfer/TCN-VAE_models
 
 jobs:
   build-and-test-linux:
@@ -28,8 +29,8 @@ jobs:
       - name: Init required submodule only
         run: |
           set -euo pipefail
-          git submodule sync -- DataDogsServer/h8-examples
-          git submodule update --init -- DataDogsServer/h8-examples
+          git submodule sync -- DataDogsServer/h8-examples EdgeInfer/TCN-VAE_models || true
+          git submodule update --init -- DataDogsServer/h8-examples EdgeInfer/TCN-VAE_models || true
 
       - name: Show submodule status
         run: |
