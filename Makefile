@@ -7,7 +7,7 @@ API_KEY        ?= supersecret123
 BASE_URL       ?= http://localhost:$(PORT)
 HDR            ?= X-API-Key: $(API_KEY)
 
-.PHONY: build run stop restart rebuild logs shell ps inspect health sessions session results smoke worker-status worker-restart worker-logs
+.PHONY: build run stop restart rebuild logs shell ps inspect health sessions session results smoke worker-status worker-restart worker-logs check-models
 
 build:
 	docker build -t $(IMG) .
@@ -71,3 +71,6 @@ worker-restart:
 
 worker-logs:
 	journalctl -u data-dogs-worker -n 100 --no-pager
+
+check-models:
+	./check-models.sh
