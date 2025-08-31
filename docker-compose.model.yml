@@ -1,11 +1,4 @@
 services:
-  SERVICE:
-    environment:
-      - USE_REAL_MODEL=false
-      - MODEL_BACKEND_URL=http://model-runner:8000
-    depends_on:
-      - model-runner
-
   model-runner:
     build:
       context: ./model-runner
@@ -23,3 +16,9 @@ services:
       timeout: 2s
       retries: 3
       start_period: 5s
+
+  web:
+    depends_on:
+      model-runner:
+        condition: service_healthy
+    restart: unless-stopped
