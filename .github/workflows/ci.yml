@@ -41,13 +41,37 @@ jobs:
         run: |
           set -euo pipefail
           gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
-          echo "Allowed:"
+          echo "Allowed (whitelist):"
           printf "%s\n" "$ALLOWED_GITLINKS"
-          echo "Found:"
-          printf "%s\n" "$gitlinks"
-          for g in $gitlinks; do
-            printf "%s\n" "$ALLOWED_GITLINKS" | grep -qx "$g" || { echo "Unexpected gitlink: $g"; exit 1; }
+          echo "Found gitlinks:"
+          if [ -n "$gitlinks" ]; then
+            printf "%s\n" "$gitlinks"
+          else
+            echo "(none)"
+          fi
+
+          # 1. Fail fast if any found gitlink is not on the whitelist.
+          if [ -n "$gitlinks" ]; then
+            for g in $gitlinks; do
+              printf "%s\n" "$ALLOWED_GITLINKS" | grep -qx "$g" || { echo "Unexpected gitlink: $g"; exit 1; }
+            done
+          fi
+
+          # 2. Ensure every required (non-empty) whitelist entry is actually present (prevents silent omission).
+          #    Trim blank lines from ALLOWED_GITLINKS first.
+          required_list=$(printf "%s\n" "$ALLOWED_GITLINKS" | sed '/^\s*$/d')
+          missing=0
+          for req in $required_list; do
+            if ! printf "%s\n" "$gitlinks" | grep -qx "$req"; then
+              echo "Missing required gitlink: $req"
+              missing=1
+            fi
           done
+          if [ "$missing" -ne 0 ]; then
+            echo "One or more required gitlinks missing."
+            exit 1
+          fi
+          echo "Submodule whitelist assertion passed."
 
       - name: Set up Swift
         uses: swift-actions/setup-swift@v1
