@@ -1,15 +1,21 @@
 services:
-  SERVICE:
-    environment:
-      - USE_REAL_MODEL=false
-      - MODEL_BACKEND_URL=http://model-runner:8000
-    depends_on:
-      - model-runner
-
   model-runner:
     build: ./model-runner
     volumes:
       - ./appdata/models/tcn_vae:/models:ro
     environment:
       - MODEL_DIR=/models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz').read()"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+    ports:
+      - "8000:8000"
+
+  web:
+    depends_on:
+      model-runner:
+        condition: service_healthy
     restart: unless-stopped
