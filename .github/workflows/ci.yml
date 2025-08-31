@@ -43,6 +43,13 @@ jobs:
           echo "Gitlinks (mode 160000):"
           git ls-files --stage | awk '$1=="160000"{print $4}'
 
+      - name: Assert allowed submodules
+        run: |
+          set -euo pipefail
+          gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
+          echo "$gitlinks"
+          echo "$gitlinks" | grep -qx "DataDogsServer/h8-examples"
+
       - name: Assert required submodule present (optionally only one)
         run: |
           set -euo pipefail
