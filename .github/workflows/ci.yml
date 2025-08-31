@@ -1,7 +1,9 @@
 name: CI
 on:
-  push: { branches: [ "**" ] }
-  pull_request: { branches: [ "**" ] }
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -11,9 +13,13 @@ permissions:
   contents: read
 
 env:
+  # Whitelist (allowed) gitlinks; add here if you introduce new submodules.
   ALLOWED_GITLINKS: |
-  DataDogsServer/h8-examples
-  EdgeInfer/TCN-VAE_models
+    DataDogsServer/h8-examples
+    EdgeInfer/TCN-VAE_models
+  # Only these must be present. Make others optional by leaving them out here.
+  REQUIRED_GITLINKS: |
+    DataDogsServer/h8-examples
 
 jobs:
   build-and-test-linux:
@@ -26,22 +32,33 @@ jobs:
           submodules: false
           fetch-depth: 0
 
-      - name: Init required submodule only
+      - name: Init required submodule(s) if present
+        shell: bash
         run: |
           set -euo pipefail
-          git submodule sync -- DataDogsServer/h8-examples EdgeInfer/TCN-VAE_models || true
-          git submodule update --init -- DataDogsServer/h8-examples EdgeInfer/TCN-VAE_models || true
+          for sm in DataDogsServer/h8-examples EdgeInfer/TCN-VAE_models; do
+            if git ls-tree -d --name-only HEAD "$sm" >/dev/null 2>&1; then
+              echo "Initializing submodule $sm"
+              git submodule sync -- "$sm"
+              git submodule update --init -- "$sm"
+            else
+              echo "Submodule $sm not present in this commit; skipping."
+            fi
+          done
 
       - name: Show submodule status
+        shell: bash
         run: |
           git submodule status --recursive || true
           echo "Gitlinks (mode 160000):"
           git ls-files --stage | awk '$1=="160000"{print $4}'
 
-      - name: Assert allowed submodules (whitelist)
+      - name: Assert allowed/required submodules
+        shell: bash
         run: |
           set -euo pipefail
           gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
+
           echo "Allowed (whitelist):"
           printf "%s\n" "$ALLOWED_GITLINKS"
           echo "Found gitlinks:"
@@ -51,28 +68,27 @@ jobs:
             echo "(none)"
           fi
 
-          # 1. Fail fast if any found gitlink is not on the whitelist.
+          # 1) Fail if any found gitlink is not on the whitelist
           if [ -n "$gitlinks" ]; then
             for g in $gitlinks; do
-              printf "%s\n" "$ALLOWED_GITLINKS" | grep -qx "$g" || { echo "Unexpected gitlink: $g"; exit 1; }
+              printf "%s\n" "$ALLOWED_GITLINKS" | sed '/^\s*$/d' | grep -qx "$g" || {
+                echo "Unexpected gitlink: $g"
+                exit 1
+              }
             done
           fi
 
-          # 2. Ensure every required (non-empty) whitelist entry is actually present (prevents silent omission).
-          #    Trim blank lines from ALLOWED_GITLINKS first.
-          required_list=$(printf "%s\n" "$ALLOWED_GITLINKS" | sed '/^\s*$/d')
+          # 2) Ensure every REQUIRED_GITLINKS entry is present
+          req_list="$(printf "%s\n" "$REQUIRED_GITLINKS" | sed '/^\s*$/d')"
           missing=0
-          for req in $required_list; do
+          for req in $req_list; do
             if ! printf "%s\n" "$gitlinks" | grep -qx "$req"; then
               echo "Missing required gitlink: $req"
               missing=1
             fi
           done
-          if [ "$missing" -ne 0 ]; then
-            echo "One or more required gitlinks missing."
-            exit 1
-          fi
-          echo "Submodule whitelist assertion passed."
+          [ "$missing" -eq 0 ] || { echo "One or more required gitlinks missing."; exit 1; }
+          echo "Submodule assertions passed."
 
       - name: Set up Swift
         uses: swift-actions/setup-swift@v1
