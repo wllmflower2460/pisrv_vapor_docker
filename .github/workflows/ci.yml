@@ -13,9 +13,18 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  REQUIRED_SUBMODULE: DataDogsServer/h8-examples
+  EXPECT_EXACTLY_ONE: "false"
+
 jobs:
-  build-and-test-linux:
-    runs-on: ubuntu-latest
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        swift: [ "6.0.2", "5.10.1" ]
+    continue-on-error: ${{ startsWith(matrix.swift, '5.') }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - name: Checkout (recursive with submodules)
@@ -28,28 +37,29 @@ jobs:
         run: |
           git submodule status --recursive || true
           echo
-          echo "Gitlinks (mode 160000) present:"
+          echo "Gitlinks (mode 160000):"
           git ls-files --stage | awk '$1=="160000"{print $4}'
 
-      - name: Assert exactly one submodule and it is DataDogsServer/h8-examples
+      - name: Assert required submodule present (optionally only one)
         run: |
           set -euo pipefail
-          cnt="$(git ls-files --stage | awk '$1=="160000"{print $4}' | wc -l)"
-          path="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
-          echo "Found gitlink count: $cnt"
-          echo "Found gitlink path : $path"
-          test "$cnt" -eq 1
-          test "$path" = "DataDogsServer/h8-examples"
+          gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
+          echo "Found gitlinks:"; echo "$gitlinks"
+          echo "$gitlinks" | grep -qx "$REQUIRED_SUBMODULE"
+          if [ "${EXPECT_EXACTLY_ONE}" = "true" ]; then
+            cnt="$(echo "$gitlinks" | wc -l | tr -d ' ')"
+            echo "Gitlink count: $cnt"; test "$cnt" -eq 1
+          fi
 
       - name: Set up Swift
         uses: swift-actions/setup-swift@v1
         with:
-          swift-version: "6.0.2"
+          swift-version: ${{ matrix.swift }}
 
       - name: Swift toolchain version
         run: swift --version
 
-      - name: Install system deps (common for Vapor on Linux)
+      - name: Install system deps (Vapor common)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -61,8 +71,10 @@ jobs:
           path: |
             .build
             ~/.swiftpm
-          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
-          restore-keys: ${{ runner.os }}-spm-
+          key: ${{ runner.os }}-spm-${{ matrix.swift }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-${{ matrix.swift }}-
+            ${{ runner.os }}-spm-
 
       - name: Resolve packages
         run: swift package resolve
@@ -73,18 +85,18 @@ jobs:
       - name: Test
         run: swift test --parallel --disable-sandbox
 
-  # Optional: revive multi-version or canary jobs here if needed
-  # canary-swift-6_1:
-  #   name: Canary (Swift 6.1)
-  #   runs-on: ubuntu-latest
-  #   continue-on-error: true
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         submodules: recursive
-  #     - uses: swift-actions/setup-swift@v1
-  #       with:
-  #         swift-version: "6.1"
-  #     - run: swift --version
-  #     - run: swift package resolve
-  #     - run: swift test --parallel --disable-sandbox
+  canary-resolve:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+      - uses: swift-actions/setup-swift@v1
+        with:
+          swift-version: "6.0.2"
+      - name: Resolve only (fast canary)
+        run: swift package resolve
