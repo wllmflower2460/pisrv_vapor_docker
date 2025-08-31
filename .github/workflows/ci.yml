@@ -1,0 +1,105 @@
+name: CI
+on:
+  push: { branches: [ "**" ] }
+  pull_request: { branches: [ "**" ] }
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ALLOWED_GITLINKS: |
+    DataDogsServer/h8-examples
+
+jobs:
+  build-and-test-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (no auto-submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Init required submodule only
+        run: |
+          set -euo pipefail
+          git submodule sync -- DataDogsServer/h8-examples
+          git submodule update --init -- DataDogsServer/h8-examples
+
+      - name: Show submodule status
+        run: |
+          git submodule status --recursive || true
+          echo "Gitlinks (mode 160000):"
+          git ls-files --stage | awk '$1=="160000"{print $4}'
+
+      - name: Assert allowed submodules (whitelist)
+        run: |
+          set -euo pipefail
+          gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
+          echo "Allowed (whitelist):"
+          printf "%s\n" "$ALLOWED_GITLINKS"
+          echo "Found gitlinks:"
+          if [ -n "$gitlinks" ]; then
+            printf "%s\n" "$gitlinks"
+          else
+            echo "(none)"
+          fi
+
+          # 1. Fail fast if any found gitlink is not on the whitelist.
+          if [ -n "$gitlinks" ]; then
+            for g in $gitlinks; do
+              printf "%s\n" "$ALLOWED_GITLINKS" | grep -qx "$g" || { echo "Unexpected gitlink: $g"; exit 1; }
+            done
+          fi
+
+          # 2. Ensure every required (non-empty) whitelist entry is actually present (prevents silent omission).
+          #    Trim blank lines from ALLOWED_GITLINKS first.
+          required_list=$(printf "%s\n" "$ALLOWED_GITLINKS" | sed '/^\s*$/d')
+          missing=0
+          for req in $required_list; do
+            if ! printf "%s\n" "$gitlinks" | grep -qx "$req"; then
+              echo "Missing required gitlink: $req"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "One or more required gitlinks missing."
+            exit 1
+          fi
+          echo "Submodule whitelist assertion passed."
+
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v1
+        with:
+          swift-version: "6.0.2"
+
+      - name: Swift toolchain version
+        run: swift --version
+
+      - name: Install system deps (Vapor common)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev libssl-dev zlib1g-dev libcurl4-openssl-dev
+
+      - name: Cache SPM build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Resolve packages
+        run: swift package resolve
+
+      - name: Build (release)
+        run: swift build -c release --disable-sandbox
+
+      - name: Test
+        run: swift test --parallel --disable-sandbox
