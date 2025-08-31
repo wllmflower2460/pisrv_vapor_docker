@@ -19,3 +19,5 @@ db.sqlite
 imu.json
 sample.mp4
 Tests/LinuxMain.swift
+
+model-runner/__pycache__/
