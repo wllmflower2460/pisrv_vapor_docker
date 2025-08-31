@@ -29,12 +29,18 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout (recursive with submodules, pinned to PR head)
+      - name: Checkout (no auto-submodules)
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          submodules: recursive
+          submodules: false
           fetch-depth: 0
+
+      - name: Init required submodule only
+        run: |
+          set -euo pipefail
+          git submodule sync -- DataDogsServer/h8-examples
+          git submodule update --init -- DataDogsServer/h8-examples
 
       - name: Show submodule status
         run: |
