@@ -6,61 +6,85 @@ on:
   pull_request:
     branches: [ "**" ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  build-test:
+  build-and-test-linux:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        swift: [ "5.10", "6.0" ]
-    container:
-      image: swift:${{ matrix.swift }}-jammy
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (recursive with submodules)
+        uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Show Swift version
-        run: swift --version
+          fetch-depth: 0
 
       - name: Show submodule status
-        run: git submodule status || true
-
-      - name: Resolve
-        run: swift package resolve
-
-      - name: Test (discovery)
-        run: swift test -v --enable-test-discovery --jobs 2
-
-      # Optional SPM cache (example, disabled)
-      # - uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       .build
-      #       .swiftpm
-      #     key: ${{ runner.os }}-spm-${{ matrix.swift }}-${{ hashFiles('**/Package.resolved') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-spm-${{ matrix.swift }}-
-
-      - name: Summary
-        if: always()
-        run: echo "Swift ${{ matrix.swift }} CI complete."
-
-  canary-swift-6_1:
-    name: Canary (Swift 6.1)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    container:
-      image: swift:6.1-jammy
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Show versions
         run: |
-          swift --version
-          git submodule status || true
-      - name: Resolve
+          git submodule status --recursive || true
+          echo
+          echo "Gitlinks (mode 160000) present:"
+          git ls-files --stage | awk '$1=="160000"{print $4}'
+
+      - name: Assert exactly one submodule and it is DataDogsServer/h8-examples
+        run: |
+          set -euo pipefail
+          cnt="$(git ls-files --stage | awk '$1=="160000"{print $4}' | wc -l)"
+          path="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
+          echo "Found gitlink count: $cnt"
+          echo "Found gitlink path : $path"
+          test "$cnt" -eq 1
+          test "$path" = "DataDogsServer/h8-examples"
+
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v1
+        with:
+          swift-version: "6.0.2"
+
+      - name: Swift toolchain version
+        run: swift --version
+
+      - name: Install system deps (common for Vapor on Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsqlite3-dev libssl-dev zlib1g-dev libcurl4-openssl-dev
+
+      - name: Cache SPM build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Resolve packages
         run: swift package resolve
-      - name: Test (discovery)
-        run: swift test -v --enable-test-discovery --jobs 2
+
+      - name: Build (release)
+        run: swift build -c release --disable-sandbox
+
+      - name: Test
+        run: swift test --parallel --disable-sandbox
+
+  # Optional: revive multi-version or canary jobs here if needed
+  # canary-swift-6_1:
+  #   name: Canary (Swift 6.1)
+  #   runs-on: ubuntu-latest
+  #   continue-on-error: true
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
+  #     - uses: swift-actions/setup-swift@v1
+  #       with:
+  #         swift-version: "6.1"
+  #     - run: swift --version
+  #     - run: swift package resolve
+  #     - run: swift test --parallel --disable-sandbox
