@@ -6,7 +6,17 @@
 set -e
 
 GPUSRV_IP="${1:-localhost}"
-BASE_URL="http://${GPUSRV_IP}:9000"
+# If the user provides a full URL (with http/https), use as is. If just host[:port], prepend http://
+if [[ "$GPUSRV_IP" =~ ^http ]]; then
+    BASE_URL="$GPUSRV_IP"
+else
+    # If already includes a port, don't append :9000
+    if [[ "$GPUSRV_IP" =~ :[0-9]+$ ]]; then
+        BASE_URL="http://$GPUSRV_IP"
+    else
+        BASE_URL="http://$GPUSRV_IP:9000"
+    fi
+fi
 TIMEOUT=10
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SAMPLES_DIR="${SCRIPT_DIR}/data/samples"
