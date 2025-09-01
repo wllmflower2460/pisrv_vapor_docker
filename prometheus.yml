@@ -18,6 +18,18 @@ scrape_configs:
     scrape_interval: 10s
     scrape_timeout: 5s
 
+  - job_name: 'hailo-inference'
+    static_configs:
+      - targets: ['hailo-inference:9000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    # Optional: relabel to distinguish from edge-infer
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'hailo-sidecar'
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']

@@ -27,16 +27,6 @@ jobs:
       - name: Test (discovery)
         run: swift test -v --enable-test-discovery --jobs 2
 
-      # Optional SPM cache (example, disabled)
-      # - uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       .build
-      #       .swiftpm
-      #     key: ${{ runner.os }}-spm-${{ matrix.swift }}-${{ hashFiles('**/Package.resolved') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-spm-${{ matrix.swift }}-
-
       - name: Summary
         if: always()
         run: echo "Swift ${{ matrix.swift }} CI complete."
