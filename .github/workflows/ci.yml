@@ -95,9 +95,9 @@ jobs:
 
       - name: Set up Swift
         run: |
-          # Install Swift directly without GPG verification
-          wget -q -O - https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz | tar xzf -
-          sudo mv swift-5.9.2-RELEASE-ubuntu22.04 /opt/swift
+          # Install Swift 5.10.0 directly without GPG verification
+          wget -q -O - https://download.swift.org/swift-5.10-release/ubuntu2204/swift-5.10-RELEASE/swift-5.10-RELEASE-ubuntu22.04.tar.gz | tar xzf -
+          sudo mv swift-5.10-RELEASE-ubuntu22.04 /opt/swift
           echo "/opt/swift/usr/bin" >> $GITHUB_PATH
 
       - name: Swift toolchain version
