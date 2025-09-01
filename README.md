@@ -57,6 +57,8 @@ even if the sidecar is unavailable (fast fallback).
 Any of: connection error, timeout, non‑2xx HTTP, malformed JSON → fallback scorer returns static deterministic values (stable for tests / monitoring).
 
 ## Testing
+
+**Swift Unit Tests:**
 9 XCTest cases cover:
 - Inference success path (mocked sidecar).
 - Non‑200 and malformed JSON → fallback.
@@ -68,6 +70,24 @@ Run locally:
 ```bash
 swift test --parallel
 ```
+
+**GPUSrv Integration Testing:**
+Comprehensive test suite for testing GPUSrv HailoRT TCN Inference Sidecar:
+
+```bash
+# Test from PiSrv to GPUSrv (replace with actual GPUSrv IP)
+./tests/test_gpusrv_hailo_api.sh 192.168.1.100
+
+# Or test locally
+./tests/test_gpusrv_hailo_api.sh localhost
+```
+
+**Test Data:**
+- `tests/data/samples/realistic_imu_sample.json` - Production-like IMU data (validated ranges)
+- `tests/data/samples/static_imu_sample.json` - Predictable test pattern
+- `tests/data/samples/random_imu_sample.json` - Random test data
+
+All samples are 100×9 IMU format: `[ax, ay, az, gx, gy, gz, mx, my, mz]`
 
 ## CI (after PR B)
 Matrix: Swift 5.10-jammy & 6.0-jammy.
@@ -220,15 +240,18 @@ curl -s http://localhost:9000/metrics | grep hailo_
 
 **Debug Commands:**
 ```bash
-# Test sidecar directly
+# Test GPUSrv Hailo sidecar comprehensively (new!)
+./tests/test_gpusrv_hailo_api.sh [gpusrv-ip]
+
+# Test specific samples manually
 curl -X POST http://localhost:9000/infer \
   -H "Content-Type: application/json" \
-  -d '{"x": [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]}' # × 100 rows
+  -d @tests/data/samples/realistic_imu_sample.json
 
 # Check Prometheus scraping
 curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.job == "hailo-inference")'
 
-# Run comprehensive tests
+# Run existing smoke tests
 ./scripts/smoke_test_hailo.sh --help
 ```
 
