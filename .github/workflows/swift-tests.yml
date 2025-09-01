@@ -37,6 +37,8 @@ jobs:
         uses: swift-actions/setup-swift@v1
         with:
           swift-version: "5.9"
+        env:
+          SKIP_GPG: "true"
 
       - name: Install system deps (Vapor common)
         run: |
