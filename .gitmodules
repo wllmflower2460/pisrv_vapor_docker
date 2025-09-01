@@ -2,3 +2,8 @@
     path = DataDogsServer/h8-examples
     url = https://github.com/hailo-ai/hailo-rpi5-examples.git
     branch = main
+
+[submodule "EdgeInfer/TCN-VAE_models"]
+	path = EdgeInfer/TCN-VAE_models
+	url = https://github.com/wllmflower2460/TCN-VAE_models.git
+    branch = main

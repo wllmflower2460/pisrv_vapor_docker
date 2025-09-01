@@ -1,24 +1,23 @@
-.build/
-.swiftpm/
-Package.resolved
-.DS_Store
-*.log
-*.xcodeproj/
-app.db
 # SwiftPM & build
 .build/
 .swiftpm/
+Package.resolved
 *.resolved
 
 # Misc
 .DS_Store
 *.log
+*.xcodeproj/
 
 # Data artifacts
 db.sqlite
 imu.json
 sample.mp4
+app.db
 Tests/LinuxMain.swift
 
+# Python
 model-runner/__pycache__/
+
+# Environment
 .env

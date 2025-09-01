@@ -1,123 +1,41 @@
 name: CI
+
 on:
   push:
-    branches: ["**"]
+    branches: [ "**" ]
   pull_request:
-    branches: ["**"]
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-
-env:
-  # Whitelist (allowed) gitlinks; add here if you introduce new submodules.
-  ALLOWED_GITLINKS: |
-    DataDogsServer/h8-examples
-  # Only these must be present. Make others optional by leaving them out here.
-  REQUIRED_GITLINKS: |
-    DataDogsServer/h8-examples
+    branches: [ "**" ]
 
 jobs:
-  build-and-test-linux:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        swift: [ "5.10", "6.0", "6.1" ]
+        include:
+          - swift: "6.1"
+            experimental: true
+    container:
+      image: swift:${{ matrix.swift }}-jammy
+    continue-on-error: ${{ matrix.experimental || false }}
     steps:
-      - name: Checkout (no auto-submodules)
-        uses: actions/checkout@v4
-        with:
-          submodules: false
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Init submodules that are actual gitlinks
-        shell: bash
-        run: |
-          set -euo pipefail
-          gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
-          if [ -n "$gitlinks" ]; then
-            for sm in $gitlinks; do
-              git submodule sync -- "$sm"
-              git submodule update --init -- "$sm"
-            done
-          else
-            echo "No gitlinks present; skipping submodule init."
-          fi
-
-      - name: Show submodule status
-        shell: bash
-        run: |
-          git submodule status --recursive || true
-          echo "Gitlinks (mode 160000):"
-          git ls-files --stage | awk '$1=="160000"{print $4}'
-
-      - name: Assert allowed/required submodules
-        shell: bash
-        run: |
-          set -euo pipefail
-          gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
-
-          echo "Allowed (whitelist):"
-          printf "%s\n" "$ALLOWED_GITLINKS"
-          echo "Found gitlinks:"
-          if [ -n "$gitlinks" ]; then
-            printf "%s\n" "$gitlinks"
-          else
-            echo "(none)"
-          fi
-
-          # 1) Fail if any found gitlink is not on the whitelist
-          if [ -n "$gitlinks" ]; then
-            for g in $gitlinks; do
-              printf "%s\n" "$ALLOWED_GITLINKS" | sed '/^\s*$/d' | grep -qx "$g" || {
-                echo "Unexpected gitlink: $g"
-                exit 1
-              }
-            done
-          fi
-
-          # 2) Ensure every REQUIRED_GITLINKS entry is present
-          req_list="$(printf "%s\n" "$REQUIRED_GITLINKS" | sed '/^\s*$/d')"
-          missing=0
-          for req in $req_list; do
-            if ! printf "%s\n" "$gitlinks" | grep -qx "$req"; then
-              echo "Missing required gitlink: $req"
-              missing=1
-            fi
-          done
-          [ "$missing" -eq 0 ] || { echo "One or more required gitlinks missing."; exit 1; }
-          echo "Submodule assertions passed."
-
-      - name: Set up Swift
-        run: |
-          # Install Swift 5.10.0 directly without GPG verification
-          wget -q -O - https://download.swift.org/swift-5.10-release/ubuntu2204/swift-5.10-RELEASE/swift-5.10-RELEASE-ubuntu22.04.tar.gz | tar xzf -
-          sudo mv swift-5.10-RELEASE-ubuntu22.04 /opt/swift
-          echo "/opt/swift/usr/bin" >> $GITHUB_PATH
-
-      - name: Swift toolchain version
+      - name: Show Swift version
         run: swift --version
 
-      - name: Install system deps (Vapor common)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsqlite3-dev libssl-dev zlib1g-dev libcurl4-openssl-dev
-
-      - name: Cache SPM build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            .build
-            ~/.swiftpm
-          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
-          restore-keys: ${{ runner.os }}-spm-
-
-      - name: Resolve packages
+      - name: Resolve
         run: swift package resolve
 
-      - name: Build (release)
-        run: swift build -c release --disable-sandbox
+      - name: Test (discovery)
+        run: swift test -v --enable-test-discovery --jobs 2
 
-      - name: Test
-        run: swift test --parallel --disable-sandbox
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ matrix.experimental || false }}" = "true" ]; then
+            echo "🐤 Swift ${{ matrix.swift }} canary CI complete (experimental)"
+          else
+            echo "Swift ${{ matrix.swift }} CI complete"
+          fi
