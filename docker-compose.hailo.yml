@@ -17,10 +17,8 @@ services:
       - FASTAPI_HOST=0.0.0.0
       - FASTAPI_PORT=9000
     volumes:
-      # Mount models read-only (populated by artifacts from hailo_pipeline)
+      # Mount models directory read-only (includes HEF files from hailo_pipeline artifacts)
       - ${MODELS_PATH:-./models}:/models:ro
-      # Optional: mount specific HEF file if available
-      - ${HEF_PATH:-./artifacts/tcn_encoder_v1.0.0.hef}:/models/tcn_encoder_v1.0.0.hef:ro
     # Note: Only expose port 9000 internally to PiSrv network
     # No external port mapping for security (sidecar internal-only)
     expose:

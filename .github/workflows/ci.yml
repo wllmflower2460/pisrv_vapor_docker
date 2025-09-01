@@ -16,7 +16,6 @@ env:
   # Whitelist (allowed) gitlinks; add here if you introduce new submodules.
   ALLOWED_GITLINKS: |
     DataDogsServer/h8-examples
-    appdata/models/tcn_vae
   # Only these must be present. Make others optional by leaving them out here.
   REQUIRED_GITLINKS: |
     DataDogsServer/h8-examples
@@ -38,15 +37,12 @@ jobs:
           set -euo pipefail
           gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
           if [ -n "$gitlinks" ]; then
-            echo "Gitlinks detected:"
-            printf "%s\n" "$gitlinks"
             for sm in $gitlinks; do
-              echo "Initializing submodule $sm"
               git submodule sync -- "$sm"
               git submodule update --init -- "$sm"
             done
           else
-            echo "No gitlinks present in this commit; skipping submodule init."
+            echo "No gitlinks present; skipping submodule init."
           fi
 
       - name: Show submodule status
