@@ -21,3 +21,4 @@ sample.mp4
 Tests/LinuxMain.swift
 
 model-runner/__pycache__/
+.env

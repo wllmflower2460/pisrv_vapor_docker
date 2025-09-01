@@ -26,6 +26,29 @@ Client --> Vapor API --> (if USE_REAL_MODEL) HTTP -> Sidecar (/infer)
 ```
 `ModelInferenceService` handles request encoding / response decoding and error normalization.
 
+## Use with Hailo sidecar (hailo_pipeline)
+
+This service **does not** run models. It calls a model **sidecar** over HTTP.
+
+- Feature flag: `USE_REAL_MODEL` (default `false`)
+- Backend URL: `MODEL_BACKEND_URL` (default `http://hailo-inference:9000/infer`)
+
+### Local smoke
+Assuming a sidecar is reachable at `http://hailo-inference:9000/infer`:
+
+```bash
+# Vapor app (port 8080)
+curl -s localhost:8080/healthz | jq .
+
+# App calling the sidecar for motif analysis
+curl -s -X POST localhost:8080/api/v1/analysis/motifs \
+  -H 'Content-Type: application/json' \
+  -d '{"sessionId":"test-session"}' | jq .
+```
+
+If `USE_REAL_MODEL=false`, the app returns deterministic stub motifs and remains healthy
+even if the sidecar is unavailable (fast fallback).
+
 ## Endpoints (core)
 - `GET /healthz` – liveness.
 - `POST /analysis/motifs` – submit JSON payload with `window` (array of floats); returns motif scores.
