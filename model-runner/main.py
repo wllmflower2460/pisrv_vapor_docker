@@ -7,6 +7,9 @@ CFG_PATH = os.path.join(MODEL_DIR, "model_config.json")
 ENC_PATH = os.path.join(MODEL_DIR, "tcn_encoder_for_edgeinfer.pth")
 DEV = torch.device("cpu")
 
+# Configuration constants
+DEFAULT_LATENT_DIM = 32  # Default latent dimension for stub mode
+
 try:
     with open(CFG_PATH) as f:
         CFG = json.load(f)
@@ -35,7 +38,9 @@ def health():
 @app.post("/infer")
 def infer(win: Window):
     if encoder is None:
-        z = np.zeros(32, dtype=np.float32)
+        # Use configured latent dimension or default for stub mode
+        latent_dim = CFG.get("latent_dim", DEFAULT_LATENT_DIM)
+        z = np.zeros(latent_dim, dtype=np.float32)
     else:
         x = np.asarray(win.x, dtype=np.float32)
         x = torch.from_numpy(x).unsqueeze(0)
