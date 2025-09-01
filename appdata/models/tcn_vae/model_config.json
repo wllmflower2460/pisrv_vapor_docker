@@ -1,0 +1,48 @@
+{
+  "input_dim": 9,
+  "hidden_dims": [
+    64,
+    128,
+    256
+  ],
+  "latent_dim": 64,
+  "sequence_length": 100,
+  "window_overlap": 0.5,
+  "num_activities": 13,
+  "activity_mapping": {
+    "pamap2": {
+      "1": "lying",
+      "2": "sitting",
+      "3": "standing",
+      "4": "walking",
+      "5": "running",
+      "6": "cycling",
+      "7": "nordic_walking",
+      "9": "watching_tv",
+      "10": "computer_work",
+      "11": "car_driving",
+      "12": "ascending_stairs",
+      "13": "descending_stairs",
+      "16": "vacuum_cleaning",
+      "17": "ironing",
+      "18": "folding_laundry",
+      "19": "house_cleaning",
+      "20": "playing_soccer",
+      "24": "rope_jumping"
+    },
+    "uci_har": {
+      "1": "walking",
+      "2": "walking_upstairs",
+      "3": "walking_downstairs",
+      "4": "sitting",
+      "5": "standing",
+      "6": "laying"
+    },
+    "tartan_imu": {
+      "0": "stationary",
+      "1": "walking",
+      "2": "running",
+      "3": "turning"
+    }
+  }
+}

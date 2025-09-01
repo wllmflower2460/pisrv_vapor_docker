@@ -12,58 +12,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        swift: [ "5.10", "6.0" ]
+        swift: [ "5.10", "6.0", "6.1" ]
+        include:
+          - swift: "6.1"
+            experimental: true
     container:
       image: swift:${{ matrix.swift }}-jammy
+    continue-on-error: ${{ matrix.experimental || false }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Show Swift version
         run: swift --version
 
-      - name: Show submodule status
-        run: git submodule status || true
-
       - name: Resolve
         run: swift package resolve
 
       - name: Test (discovery)
         run: swift test -v --enable-test-discovery --jobs 2
 
-      # Optional SPM cache (example, disabled)
-      # - uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       .build
-      #       .swiftpm
-      #     key: ${{ runner.os }}-spm-${{ matrix.swift }}-${{ hashFiles('**/Package.resolved') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-spm-${{ matrix.swift }}-
-
       - name: Summary
         if: always()
-        run: echo "Swift ${{ matrix.swift }} CI complete."
-
-  canary-swift-6_1:
-    name: Canary (Swift 6.1)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    container:
-      image: swift:6.1-jammy
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Show versions
         run: |
-          swift --version
-          git submodule status || true
-      - name: Resolve
-        run: swift package resolve
-      - name: Test (discovery)
-        run: swift test -v --enable-test-discovery --jobs 2
-      - name: Summary
-        if: always()
-        run: echo "🐤 Swift 6.1 canary CI complete (experimental, allowed to fail)"
+          if [ "${{ matrix.experimental || false }}" = "true" ]; then
+            echo "🐤 Swift ${{ matrix.swift }} canary CI complete (experimental)"
+          else
+            echo "Swift ${{ matrix.swift }} CI complete"
+          fi

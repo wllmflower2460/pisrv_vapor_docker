@@ -7,9 +7,25 @@ services:
       - model-runner
 
   model-runner:
-    build: ./model-runner
+    build:
+      context: ./model-runner
+    container_name: model-runner
     volumes:
       - ./appdata/models/tcn_vae:/models:ro
     environment:
       - MODEL_DIR=/models
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz').read()"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
+
+  web:
+    depends_on:
+      model-runner:
+        condition: service_healthy
     restart: unless-stopped

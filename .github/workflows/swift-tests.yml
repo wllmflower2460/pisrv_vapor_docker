@@ -8,29 +8,57 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
+          fetch-depth: 0
+
+      - name: Init submodules that are actual gitlinks
+        shell: bash
+        run: |
+          set -euo pipefail
+          gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
+          if [ -n "$gitlinks" ]; then
+            echo "Gitlinks detected:"
+            printf "%s\n" "$gitlinks"
+            for sm in $gitlinks; do
+              echo "Initializing submodule $sm"
+              git submodule sync -- "$sm"
+              git submodule update --init -- "$sm"
+            done
+          else
+            echo "No gitlinks present in this commit; skipping submodule init."
+          fi
 
       - name: Install Swift
-        uses: swift-actions/setup-swift@v2
+        run: |
+          # Install Swift 5.10.0 directly without GPG verification
+          wget -q -O - https://download.swift.org/swift-5.10-release/ubuntu2204/swift-5.10-RELEASE/swift-5.10-RELEASE-ubuntu22.04.tar.gz | tar xzf -
+          sudo mv swift-5.10-RELEASE-ubuntu22.04 /opt/swift
+          echo "/opt/swift/usr/bin" >> $GITHUB_PATH
+
+      - name: Install system deps (Vapor common)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev libssl-dev zlib1g-dev libcurl4-openssl-dev
+
+      - name: Cache SPM build artifacts
+        uses: actions/cache@v4
         with:
-          swift-version: "5.10"
+          path: |
+            .build
+            ~/.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
+
+      - name: Resolve packages
+        run: swift package resolve
 
       - name: Build & Test
         run: |
           swift --version
-          swift build -c release
-          swift test -c release --enable-test-discovery
-
-      # Optional: cache the .build directory to speed up CI runs
-      - name: Cache Swift build
-        uses: actions/cache@v4
-        with:
-          path: .build
-          key: ${{ runner.os }}-swift-${{ hashFiles('Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-swift-
+          swift build -c release --disable-sandbox
+          swift test --parallel --disable-sandbox
