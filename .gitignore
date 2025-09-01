@@ -21,3 +21,5 @@ model-runner/__pycache__/
 
 # Environment
 .env
+
+#! Allow Tests/LinuxMain.swift (Swift 5.10+ discovery anchor) to be tracked
