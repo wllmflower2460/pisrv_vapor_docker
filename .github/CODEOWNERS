@@ -1,0 +1,3 @@
+# CODEOWNERS: enforce review for workflow changes
+
+.github/workflows/**  @wllmflower @CPflower

@@ -12,9 +12,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        swift: [ "5.10", "6.0" ]
+        swift: [ "5.10", "6.0", "6.1" ]
+        include:
+          - swift: "6.1"
+            experimental: true
     container:
       image: swift:${{ matrix.swift }}-jammy
+    continue-on-error: ${{ matrix.experimental || false }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,16 +31,11 @@ jobs:
       - name: Test (discovery)
         run: swift test -v --enable-test-discovery --jobs 2
 
-      # Optional SPM cache (example, disabled)
-      # - uses: actions/cache@v4
-      #   with:
-      #     path: |
-      #       .build
-      #       .swiftpm
-      #     key: ${{ runner.os }}-spm-${{ matrix.swift }}-${{ hashFiles('**/Package.resolved') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-spm-${{ matrix.swift }}-
-
       - name: Summary
         if: always()
-        run: echo "Swift ${{ matrix.swift }} CI complete."
+        run: |
+          if [ "${{ matrix.experimental || false }}" = "true" ]; then
+            echo "🐤 Swift ${{ matrix.swift }} canary CI complete (experimental)"
+          else
+            echo "Swift ${{ matrix.swift }} CI complete"
+          fi
