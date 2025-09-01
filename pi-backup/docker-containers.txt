@@ -1,0 +1,4 @@
+NAMES        IMAGE                           STATUS
+vapor        vapor-app:latest                Up 23 hours (healthy)
+edge-infer   vapor-docker-edge-infer         Up 23 hours (healthy)
+portainer    portainer/portainer-ce:latest   Up 23 hours

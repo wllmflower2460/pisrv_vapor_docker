@@ -1,0 +1,16 @@
+vapor-docker-edge-infer:latest
+<none>:<none>
+<none>:<none>
+<none>:<none>
+<none>:<none>
+<none>:<none>
+<none>:<none>
+<none>:<none>
+<none>:<none>
+<none>:<none>
+vapor-app:latest
+<none>:<none>
+vapor-app:clean
+portainer/portainer-ce:latest
+swift:6.0-jammy
+swift:5.10-jammy
