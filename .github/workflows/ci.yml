@@ -16,14 +16,13 @@ env:
   # Whitelist (allowed) gitlinks; add here if you introduce new submodules.
   ALLOWED_GITLINKS: |
     DataDogsServer/h8-examples
-    EdgeInfer/TCN-VAE_models
   # Only these must be present. Make others optional by leaving them out here.
   REQUIRED_GITLINKS: |
     DataDogsServer/h8-examples
 
 jobs:
   build-and-test-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - name: Checkout (no auto-submodules)
@@ -32,19 +31,19 @@ jobs:
           submodules: false
           fetch-depth: 0
 
-      - name: Init required submodule(s) if present
+      - name: Init submodules that are actual gitlinks
         shell: bash
         run: |
           set -euo pipefail
-          for sm in DataDogsServer/h8-examples EdgeInfer/TCN-VAE_models; do
-            if git ls-tree -d --name-only HEAD "$sm" >/dev/null 2>&1; then
-              echo "Initializing submodule $sm"
+          gitlinks="$(git ls-files --stage | awk '$1=="160000"{print $4}')"
+          if [ -n "$gitlinks" ]; then
+            for sm in $gitlinks; do
               git submodule sync -- "$sm"
               git submodule update --init -- "$sm"
-            else
-              echo "Submodule $sm not present in this commit; skipping."
-            fi
-          done
+            done
+          else
+            echo "No gitlinks present; skipping submodule init."
+          fi
 
       - name: Show submodule status
         shell: bash
@@ -91,9 +90,11 @@ jobs:
           echo "Submodule assertions passed."
 
       - name: Set up Swift
-        uses: swift-actions/setup-swift@v1
-        with:
-          swift-version: "6.0.2"
+        run: |
+          # Install Swift 5.10.0 directly without GPG verification
+          wget -q -O - https://download.swift.org/swift-5.10-release/ubuntu2204/swift-5.10-RELEASE/swift-5.10-RELEASE-ubuntu22.04.tar.gz | tar xzf -
+          sudo mv swift-5.10-RELEASE-ubuntu22.04 /opt/swift
+          echo "/opt/swift/usr/bin" >> $GITHUB_PATH
 
       - name: Swift toolchain version
         run: swift --version
