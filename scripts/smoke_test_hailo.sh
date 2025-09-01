@@ -63,11 +63,13 @@ test_hailo_health() {
 
 test_hailo_contract() {
     local payload
-    payload=$(python3 - <<'EOF'
-import json
-print(json.dumps({"x": [[0.0]*9 for _ in range(100)]}))
-EOF
-)
+    # Generate 100 rows of 9 zeros each without Python dependency
+    payload='{"x":['
+    for ((i=0; i<100; i++)); do
+        if [ $i -gt 0 ]; then payload+=','; fi
+        payload+='[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]'
+    done
+    payload+=']}'
     
     local response
     response=$(curl -fsS -X POST "$HAILO_URL/infer" \

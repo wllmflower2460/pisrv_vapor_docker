@@ -169,8 +169,8 @@ echo "  -H \"Content-Type: application/json\" \\"
 echo -e "  -d @tests/data/samples/realistic_imu_sample.json${NC}"
 
 # Summary
-passed_tests=$(echo "$success_count + 8" | bc 2>/dev/null || echo "8+")  # Approximate
-echo -e "\n${GREEN}📊 Test Summary: Most endpoints tested successfully${NC}"
+echo -e "\n${GREEN}📊 Test Summary: Endpoint tests completed${NC}"
+echo -e "${GREEN}Load test results: $success_count/5 requests successful${NC}"
 if [ "$success_count" -eq 5 ]; then
     echo -e "${GREEN}🎉 All inference tests passed! GPUSrv is ready for PiSrv integration.${NC}"
 else
