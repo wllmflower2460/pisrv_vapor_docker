@@ -64,3 +64,6 @@ jobs:
         run: swift package resolve
       - name: Test (discovery)
         run: swift test -v --enable-test-discovery --jobs 2
+      - name: Summary
+        if: always()
+        run: echo "🐤 Swift 6.1 canary CI complete (experimental, allowed to fail)"
