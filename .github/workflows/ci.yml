@@ -94,11 +94,10 @@ jobs:
           echo "Submodule assertions passed."
 
       - name: Set up Swift
-        uses: swift-actions/setup-swift@v1
+        uses: swift-actions/setup-swift@v2
         with:
           swift-version: "5.9"
-        env:
-          SKIP_GPG: "true"
+          skip-gpg: true
 
       - name: Swift toolchain version
         run: swift --version
