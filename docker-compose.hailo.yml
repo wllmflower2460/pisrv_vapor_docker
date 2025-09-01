@@ -1,0 +1,82 @@
+# Hailo Sidecar Integration Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.hailo.yml up -d
+
+services:
+  # Add Hailo inference sidecar to the stack
+  hailo-inference:
+    image: ghcr.io/wllmflower2460/hailo-sidecar:v1.0.0
+    container_name: hailo-inference
+    init: true
+    user: "1000:1000"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      - HEF_PATH=${HEF_PATH:-/models/tcn_encoder_v1.0.0.hef}
+      - NUM_MOTIFS=${NUM_MOTIFS:-12}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - FASTAPI_HOST=0.0.0.0
+      - FASTAPI_PORT=9000
+    volumes:
+      # Mount models read-only (populated by artifacts from hailo_pipeline)
+      - ${MODELS_PATH:-./models}:/models:ro
+      # Optional: mount specific HEF file if available
+      - ${HEF_PATH:-./artifacts/tcn_encoder_v1.0.0.hef}:/models/tcn_encoder_v1.0.0.hef:ro
+    # Note: Only expose port 9000 internally to PiSrv network
+    # No external port mapping for security (sidecar internal-only)
+    expose:
+      - "9000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Pi-specific configuration for real Hailo device access
+    devices:
+      - /dev/hailo0:/dev/hailo0  # Only works on Pi with Hailo-8
+    profiles:
+      - hailo-device  # Use this profile on Pi with real hardware
+
+  # GPUSrv stub version (no device mapping)
+  hailo-inference-stub:
+    extends: hailo-inference
+    container_name: hailo-inference-stub
+    environment:
+      - HEF_PATH=/models/stub  # Triggers stub mode
+      - NUM_MOTIFS=${NUM_MOTIFS:-12}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - FASTAPI_HOST=0.0.0.0
+      - FASTAPI_PORT=9000
+    devices: []  # No device mapping for stub mode
+    profiles:
+      - hailo-stub  # Use this profile on GPUSrv for development
+    
+  # Update edge-infer to use Hailo backend when USE_REAL_MODEL=true
+  edge-infer:
+    environment:
+      - USE_REAL_MODEL=${USE_REAL_MODEL:-false}
+      - MODEL_BACKEND_URL=${MODEL_BACKEND_URL:-http://hailo-inference:9000/infer}
+      - BACKEND_TIMEOUT_MS=${BACKEND_TIMEOUT_MS:-250}
+      - BACKEND_RETRIES=${BACKEND_RETRIES:-0}
+    depends_on:
+      hailo-inference:
+        condition: service_healthy
+        required: false  # Allow fallback if Hailo service not available
+
+# Create shared network for internal communication
+networks:
+  default:
+    name: pisrv-network
