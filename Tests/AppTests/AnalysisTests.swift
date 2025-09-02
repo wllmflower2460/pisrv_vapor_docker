@@ -34,42 +34,41 @@ final class AnalysisTests: XCTestCase {
 
     func testMotifs_StubPath() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
-        defer { app.shutdown() }
-        try app.test(.GET, "/api/v1/analysis/motifs") { res in
+        try await app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
             // Expect stub structure (should contain "motifs")
             XCTAssertTrue(res.body.string.contains("motifs"))
         }
+        try await app.asyncShutdown()
     }
 
     func testMotifs_RealFlagButNoBackendFallsBack() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
-        defer { app.shutdown() }
         // No backend URL set, should not crash and should return fallback
-        try app.test(.GET, "/api/v1/analysis/motifs") { res in
+        try await app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
             XCTAssertTrue(res.body.string.contains("motifs"))
         }
+        try await app.asyncShutdown()
     }
 
     func testHealthz() async throws {
         let app = try await makeApp()
-        defer { app.shutdown() }
-        try app.test(.GET, "/healthz") { res in
+        try await app.test(.GET, "/healthz") { res in
             XCTAssertEqual(res.status, .ok)
         }
+        try await app.asyncShutdown()
     }
     
     func testInfer_StubMode() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
-        defer { app.shutdown() }
         
         // Valid 100x9 input
         let validInput = [
             "x": (0..<100).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        try app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(validInput)
         }) { res in
             XCTAssertEqual(res.status, .ok)
@@ -77,27 +76,27 @@ final class AnalysisTests: XCTestCase {
             XCTAssertEqual(response.latent.count, 64)
             XCTAssertEqual(response.motif_scores.count, 12)
         }
+        try await app.asyncShutdown()
     }
     
     func testInfer_BadRowCount() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
-        defer { app.shutdown() }
         
         // Invalid: only 50 rows instead of 100
         let invalidInput = [
             "x": (0..<50).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        try app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(invalidInput)
         }) { res in
             XCTAssertEqual(res.status, .badRequest)
         }
+        try await app.asyncShutdown()
     }
     
     func testInfer_BadColumnCount() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
-        defer { app.shutdown() }
         
         // Invalid: 5 columns instead of 9 in some rows
         let invalidInput = [
@@ -107,23 +106,23 @@ final class AnalysisTests: XCTestCase {
             }
         ]
         
-        try app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(invalidInput)
         }) { res in
             XCTAssertEqual(res.status, .badRequest)
         }
+        try await app.asyncShutdown()
     }
     
     func testInfer_RealModeNoBackend() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
-        defer { app.shutdown() }
         // No backend URL set, should fallback gracefully
         
         let validInput = [
             "x": (0..<100).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        try app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(validInput)
         }) { res in
             XCTAssertEqual(res.status, .ok)
@@ -131,6 +130,7 @@ final class AnalysisTests: XCTestCase {
             XCTAssertEqual(response.latent.count, 64)
             XCTAssertEqual(response.motif_scores.count, 12)
         }
+        try await app.asyncShutdown()
     }
 
 }
