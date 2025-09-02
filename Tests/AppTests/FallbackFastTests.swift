@@ -17,7 +17,7 @@ final class FallbackFastTests: XCTestCase {
         app.http.client.configuration.timeout.read = .milliseconds(200)
 
         let start = Date()
-        await app.test(.GET, "/api/v1/analysis/motifs") { res in
+        try await app.test(.GET, "/api/v1/analysis/motifs") { res in
             let elapsed = Date().timeIntervalSince(start)
             XCTAssertLessThan(elapsed, 0.25, "Fallback took too long (\(elapsed)s)")
             XCTAssertEqual(res.status, .ok)

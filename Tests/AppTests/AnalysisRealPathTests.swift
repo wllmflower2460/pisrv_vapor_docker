@@ -13,7 +13,7 @@ final class AnalysisRealPathTests: XCTestCase {
 
         app.clients.use { app in MockClient(eventLoopGroup: app.eventLoopGroup) }
 
-        await app.test(.GET, "/api/v1/analysis/motifs") { res in
+        try await app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
             let body = res.body.string
             XCTAssertTrue(body.contains("motifs"))
