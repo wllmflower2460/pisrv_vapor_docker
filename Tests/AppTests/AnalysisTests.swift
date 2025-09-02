@@ -18,6 +18,19 @@ final class AnalysisTests: XCTestCase {
 
     func makeApp() async throws -> Application {
         let app = try await Application.make(.testing)
+<<<<<<< HEAD
+        try configure(app)
+        return app
+    }
+    
+    func makeAppWithEnvironment(_ env: [String: String]) async throws -> Application {
+        // Set environment variables using setenv before creating the app
+        for (key, value) in env {
+            setenv(key, value, 1)
+        }
+        let app = try await Application.make(.testing)
+=======
+>>>>>>> origin/main
         try configure(app)
         return app
     }
@@ -31,6 +44,7 @@ final class AnalysisTests: XCTestCase {
         try configure(app)
         return app
     }
+    
 
     func testMotifs_StubPath() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
@@ -114,6 +128,7 @@ final class AnalysisTests: XCTestCase {
         try await app.asyncShutdown()
     }
     
+<<<<<<< HEAD
     func testInfer_RealModeNoBackend() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
         // No backend URL set, should fallback gracefully
@@ -133,3 +148,7 @@ final class AnalysisTests: XCTestCase {
         try await app.asyncShutdown()
     }
 }
+=======
+
+}
+>>>>>>> origin/main

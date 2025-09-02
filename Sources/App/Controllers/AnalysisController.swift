@@ -85,6 +85,7 @@ struct AnalysisController: RouteCollection {
         
         do {
             // Convert Double to Float for the sidecar
+<<<<<<< HEAD
             var window = Array(repeating: [Float](), count: inferRequest.x.count)
             for (i, row) in inferRequest.x.enumerated() {
                 var floatRow = [Float]()
@@ -103,6 +104,12 @@ struct AnalysisController: RouteCollection {
             if result.motif_scores == nil {
                 req.logger.warning("Sidecar returned nil for 'motif_scores' field in model inference response.")
             }
+=======
+            let window = inferRequest.x.map { row in row.map(Float.init) }
+            let result = try await ModelInferenceService.analyzeIMUWindow(req, window: window, modelURL: backend)
+            
+            let latent = (result.latent ?? []).map(Double.init)
+>>>>>>> origin/main
             let motifScores = (result.motif_scores ?? []).map(Double.init)
             
             // Validate response dimensions
