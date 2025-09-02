@@ -97,14 +97,25 @@ def generate_statistics(data, format_name):
             'null_count': df[col].isnull().sum()
         }
     
-    # Analyze text columns
+    # Analyze text columns (skip dict/complex types)
     text_cols = df.select_dtypes(include=['object']).columns
     for col in text_cols:
-        stats['text_field_stats'][col] = {
-            'unique_values': df[col].nunique(),
-            'null_count': df[col].isnull().sum(),
-            'avg_length': df[col].astype(str).str.len().mean() if not df[col].empty else 0
-        }
+        try:
+            # Skip columns with dict/complex types that can't be hashed
+            unique_count = df[col].nunique()
+            stats['text_field_stats'][col] = {
+                'unique_values': unique_count,
+                'null_count': df[col].isnull().sum(),
+                'avg_length': df[col].astype(str).str.len().mean() if not df[col].empty else 0
+            }
+        except TypeError:
+            # Handle unhashable types like dicts
+            stats['text_field_stats'][col] = {
+                'unique_values': 'N/A (complex type)',
+                'null_count': df[col].isnull().sum(),
+                'avg_length': df[col].astype(str).str.len().mean() if not df[col].empty else 0,
+                'note': 'Contains complex data (dict/list)'
+            }
     
     return stats
 
