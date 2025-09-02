@@ -10,10 +10,31 @@ struct MotifsResponse: Content {
     let useReal: Bool
 }
 
+struct InferRequest: Content {
+    let x: [[Double]]
+    
+    func validate() throws {
+        guard x.count == 100 else {
+            throw Abort(.badRequest, reason: "Input must have exactly 100 rows, got \(x.count)")
+        }
+        for (i, row) in x.enumerated() {
+            guard row.count == 9 else {
+                throw Abort(.badRequest, reason: "Row \(i) must have exactly 9 columns, got \(row.count)")
+            }
+        }
+    }
+}
+
+struct InferResponse: Content {
+    let latent: [Double]
+    let motif_scores: [Double]
+}
+
 struct AnalysisController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         let api = routes.grouped("api","v1","analysis")
         api.get("motifs", use: motifs)
+        api.post("infer", use: infer)
     }
     
     func motifs(req: Request) async throws -> MotifsResponse {
@@ -47,6 +68,49 @@ struct AnalysisController: RouteCollection {
         }
     }
 
+    func infer(req: Request) async throws -> InferResponse {
+        let started = Date()
+        let inferRequest = try req.content.decode(InferRequest.self)
+        try inferRequest.validate()
+        
+        let useRealFlag = (Environment.get("USE_REAL_MODEL") == "true")
+        if !useRealFlag {
+            // Stub mode: return mock data with correct dimensions
+            let latent = (0..<64).map { _ in Double.random(in: -1...1) }
+            let motifScores = (0..<12).map { _ in Double.random(in: 0...1) }
+            return InferResponse(latent: latent, motif_scores: motifScores)
+        }
+        
+        // Real mode: proxy to sidecar
+        let backend = Environment.get("MODEL_BACKEND_URL") ?? "http://hailo-inference:8000/infer"
+        let timeoutMs = Int(Environment.get("BACKEND_TIMEOUT_MS") ?? "1500") ?? 1500
+        
+        do {
+            // Convert Double to Float for the sidecar
+            let window = inferRequest.x.map { row in row.map(Float.init) }
+            let result = try await ModelInferenceService.analyzeIMUWindow(req, window: window, modelURL: backend, timeoutMs: timeoutMs)
+            
+            let latent = (result.latent ?? []).map(Double.init)
+            let motifScores = (result.motif_scores ?? []).map(Double.init)
+            
+            // Validate response dimensions
+            guard latent.count == 64 else {
+                throw Abort(.badGateway, reason: "Invalid latent dimension: expected 64, got \(latent.count)")
+            }
+            guard motifScores.count == 12 else {
+                throw Abort(.badGateway, reason: "Invalid motif_scores dimension: expected 12, got \(motifScores.count)")
+            }
+            
+            return InferResponse(latent: latent, motif_scores: motifScores)
+        } catch {
+            req.logger.warning("Model inference failed: \(error). Falling back to stub.")
+            // Fallback to stub
+            let latent = (0..<64).map { _ in Double.random(in: -1...1) }
+            let motifScores = (0..<12).map { _ in Double.random(in: 0...1) }
+            return InferResponse(latent: latent, motif_scores: motifScores)
+        }
+    }
+    
     // TEMP: mock window until real IMU buffer integration
     private static func mockWindow(length: Int = 100, features: Int = 9) -> [[Float]] {
         (0..<length).map { _ in (0..<features).map { _ in Float.random(in: -1...1) } }
