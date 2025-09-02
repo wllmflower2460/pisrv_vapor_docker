@@ -23,7 +23,7 @@ final class AnalysisTests: XCTestCase {
     }
     
     func makeAppWithEnvironment(_ env: [String: String]) async throws -> Application {
-        // Set environment variables before Application init
+        // Set environment variables using setenv before creating the app
         for (key, value) in env {
             setenv(key, value, 1)
         }
@@ -132,5 +132,4 @@ final class AnalysisTests: XCTestCase {
         }
         try await app.asyncShutdown()
     }
-
 }
