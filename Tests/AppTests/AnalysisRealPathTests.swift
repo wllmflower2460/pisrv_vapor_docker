@@ -5,7 +5,7 @@ import XCTest
 final class AnalysisRealPathTests: XCTestCase {
     func testMotifs_RealPath_UsesMockSidecar() async throws {
         let app = try await Application.make(.testing)
-        defer { app.shutdown() }
+        defer { await app.asyncShutdown() }
         try configure(app)
 
         setenv("USE_REAL_MODEL", "true", 1)
