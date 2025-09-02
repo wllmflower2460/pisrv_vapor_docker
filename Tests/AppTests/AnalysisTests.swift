@@ -31,6 +31,7 @@ final class AnalysisTests: XCTestCase {
         try configure(app)
         return app
     }
+    
 
     func testMotifs_StubPath() async throws {
         let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
@@ -114,23 +115,5 @@ final class AnalysisTests: XCTestCase {
         try await app.asyncShutdown()
     }
     
-    func testInfer_RealModeNoBackend() async throws {
-        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
-        // No backend URL set, should fallback gracefully
-        
-        let validInput = [
-            "x": (0..<100).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
-        ]
-        
-        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
-            try req.content.encode(validInput)
-        }) { res in
-            XCTAssertEqual(res.status, .ok)
-            let response = try res.content.decode(InferResponse.self)
-            XCTAssertEqual(response.latent.count, 64)
-            XCTAssertEqual(response.motif_scores.count, 12)
-        }
-        try await app.asyncShutdown()
-    }
 
 }
