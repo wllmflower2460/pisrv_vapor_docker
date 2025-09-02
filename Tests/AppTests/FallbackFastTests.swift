@@ -6,7 +6,6 @@ import XCTVapor
 final class FallbackFastTests: XCTestCase {
     func testRealPathFallbackFast() async throws {
         let app = try await Application.make(.testing)
-        defer { await app.asyncShutdown() }
         try configure(app)
 
         // Force real path, but point to an impossible endpoint
@@ -18,12 +17,13 @@ final class FallbackFastTests: XCTestCase {
         app.http.client.configuration.timeout.read = .milliseconds(200)
 
         let start = Date()
-        try app.test(.GET, "/api/v1/analysis/motifs") { res in
+        try await app.test(.GET, "/api/v1/analysis/motifs") { res in
             let elapsed = Date().timeIntervalSince(start)
             XCTAssertLessThan(elapsed, 0.25, "Fallback took too long (\(elapsed)s)")
             XCTAssertEqual(res.status, .ok)
             let body = res.body.string
             XCTAssertTrue(body.contains("motifs"))
         }
+        try await app.asyncShutdown()
     }
 }

@@ -5,7 +5,6 @@ import XCTest
 final class AnalysisRealPathTests: XCTestCase {
     func testMotifs_RealPath_UsesMockSidecar() async throws {
         let app = try await Application.make(.testing)
-        defer { await app.asyncShutdown() }
         try configure(app)
 
         setenv("USE_REAL_MODEL", "true", 1)
@@ -14,11 +13,12 @@ final class AnalysisRealPathTests: XCTestCase {
 
         app.clients.use { app in MockClient(eventLoopGroup: app.eventLoopGroup) }
 
-        try app.test(.GET, "/api/v1/analysis/motifs") { res in
+        try await app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
             let body = res.body.string
             XCTAssertTrue(body.contains("motifs"))
             XCTAssertTrue(body.contains("useReal"))
         }
+        try await app.asyncShutdown()
     }
 }
