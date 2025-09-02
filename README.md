@@ -6,6 +6,25 @@
 
 Minimal Vapor-based inference edge service with feature‑flagged model sidecar, fast fallback, and multi‑Swift CI.
 
+## Development: Submodules
+
+This repo uses git submodules for model and example assets:
+
+- `appdata/models/tcn_vae` (TCN-VAE models)
+- `DataDogsServer/h8-examples` (Hailo Raspberry Pi 5 example pipelines)
+
+**First clone (with submodules):**
+```bash
+git clone --recurse-submodules git@github.com:wllmflower2460/pisrv_vapor_docker.git
+```
+
+**Existing clone (initialize submodules):**
+```bash
+git submodule update --init --recursive
+```
+
+CI note: GitHub Actions uses recursive checkout; see `.github/workflows/` for `submodules: recursive` plus gitlinks-only initialization.
+
 ## Features
 - HTTP API for submitting analysis windows (see routes under `/analysis`).
 - Feature flags:
