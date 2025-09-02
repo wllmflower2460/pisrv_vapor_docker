@@ -17,8 +17,8 @@ final class InferenceServiceTests: XCTestCase {
     }
 
     func withApp(status: HTTPResponseStatus, body: String, test: (Application, Request) async throws -> Void) async throws {
-        let app = Application(.testing)
-        defer { app.shutdown() }
+        let app = try await Application.make(.testing)
+        defer { try! await app.asyncShutdown() }
         try configure(app)
         let loop = app.eventLoopGroup.next()
         let client = StubClient(eventLoop: loop, status: status, bodyJSON: body)

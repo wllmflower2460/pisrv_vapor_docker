@@ -23,11 +23,11 @@ final class AnalysisTests: XCTestCase {
     }
     
     func makeAppWithEnvironment(_ env: [String: String]) throws -> Application {
-        let app = Application(.testing)
-        // Set environment variables on the app directly
+        // Set environment variables before Application init
         for (key, value) in env {
-            app.environment[key] = value
+            setenv(key, value, 1)
         }
+        let app = Application(.testing)
         try configure(app)
         return app
     }
