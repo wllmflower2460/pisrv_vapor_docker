@@ -96,7 +96,13 @@ struct AnalysisController: RouteCollection {
             }
             let result = try await ModelInferenceService.analyzeIMUWindow(req, window: window, modelURL: backend)
             
+            if result.latent == nil {
+                req.logger.warning("Sidecar returned nil for 'latent' field in model inference response.")
+            }
             let latent = (result.latent ?? []).map(Double.init)
+            if result.motif_scores == nil {
+                req.logger.warning("Sidecar returned nil for 'motif_scores' field in model inference response.")
+            }
             let motifScores = (result.motif_scores ?? []).map(Double.init)
             
             // Validate response dimensions
