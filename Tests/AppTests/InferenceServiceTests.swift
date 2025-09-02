@@ -18,13 +18,13 @@ final class InferenceServiceTests: XCTestCase {
 
     func withApp(status: HTTPResponseStatus, body: String, test: (Application, Request) async throws -> Void) async throws {
         let app = try await Application.make(.testing)
-        defer { try! await app.asyncShutdown() }
         try configure(app)
         let loop = app.eventLoopGroup.next()
         let client = StubClient(eventLoop: loop, status: status, bodyJSON: body)
         app.clients.use { _ in client }
         let req = Request(application: app, on: loop)
         try await test(app, req)
+        try await app.asyncShutdown()
     }
 
     func testAnalyzeIMUWindow_success() async throws {
