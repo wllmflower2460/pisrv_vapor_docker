@@ -35,7 +35,7 @@ final class AnalysisTests: XCTestCase {
     func testMotifs_StubPath() throws {
         let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
         defer { app.shutdown() }
-        try app.test(.GET, "/api/v1/analysis/motifs") { res in
+        await app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
             // Expect stub structure (should contain "motifs")
             XCTAssertTrue(res.body.string.contains("motifs"))
@@ -46,7 +46,7 @@ final class AnalysisTests: XCTestCase {
         let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
         defer { app.shutdown() }
         // No backend URL set, should not crash and should return fallback
-        try app.test(.GET, "/api/v1/analysis/motifs") { res in
+        await app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
             XCTAssertTrue(res.body.string.contains("motifs"))
         }
@@ -55,7 +55,7 @@ final class AnalysisTests: XCTestCase {
     func testHealthz() throws {
         let app = try makeApp()
         defer { app.shutdown() }
-        try app.test(.GET, "/healthz") { res in
+        await app.test(.GET, "/healthz") { res in
             XCTAssertEqual(res.status, .ok)
         }
     }
@@ -69,7 +69,7 @@ final class AnalysisTests: XCTestCase {
             "x": (0..<100).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        try app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(validInput)
         }) { res in
             XCTAssertEqual(res.status, .ok)
@@ -88,7 +88,7 @@ final class AnalysisTests: XCTestCase {
             "x": (0..<50).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        try app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(invalidInput)
         }) { res in
             XCTAssertEqual(res.status, .badRequest)
@@ -107,7 +107,7 @@ final class AnalysisTests: XCTestCase {
             }
         ]
         
-        try app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(invalidInput)
         }) { res in
             XCTAssertEqual(res.status, .badRequest)
@@ -123,7 +123,7 @@ final class AnalysisTests: XCTestCase {
             "x": (0..<100).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        try app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(validInput)
         }) { res in
             XCTAssertEqual(res.status, .ok)
