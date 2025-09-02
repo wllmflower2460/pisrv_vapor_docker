@@ -6,7 +6,7 @@ import XCTVapor
 final class FallbackFastTests: XCTestCase {
     func testRealPathFallbackFast() async throws {
         let app = try await Application.make(.testing)
-        defer { app.shutdown() }
+        defer { await app.asyncShutdown() }
         try configure(app)
 
         // Force real path, but point to an impossible endpoint
