@@ -4,8 +4,8 @@ import XCTVapor
 /// Ensures the real-path fallback occurs quickly when the sidecar cannot be reached.
 /// Uses 127.0.0.1:0 (invalid port) and a 50ms connect timeout to avoid 1s waits.
 final class FallbackFastTests: XCTestCase {
-    func testRealPathFallbackFast() throws {
-        let app = Application(.testing)
+    func testRealPathFallbackFast() async throws {
+        let app = try await Application.make(.testing)
         defer { app.shutdown() }
         try configure(app)
 

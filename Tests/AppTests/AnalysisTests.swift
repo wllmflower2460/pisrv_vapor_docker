@@ -16,24 +16,24 @@ final class AnalysisTests: XCTestCase {
         super.tearDown()
     }
 
-    func makeApp() throws -> Application {
-        let app = Application(.testing)
+    func makeApp() async throws -> Application {
+        let app = try await Application.make(.testing)
         try configure(app)
         return app
     }
     
-    func makeAppWithEnvironment(_ env: [String: String]) throws -> Application {
-        let app = Application(.testing)
-        // Set environment variables on the app directly
+    func makeAppWithEnvironment(_ env: [String: String]) async throws -> Application {
+        // Set environment variables using setenv before creating the app
         for (key, value) in env {
-            app.environment[key] = value
+            setenv(key, value, 1)
         }
+        let app = try await Application.make(.testing)
         try configure(app)
         return app
     }
 
-    func testMotifs_StubPath() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
+    func testMotifs_StubPath() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
         defer { app.shutdown() }
         try app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
@@ -42,8 +42,8 @@ final class AnalysisTests: XCTestCase {
         }
     }
 
-    func testMotifs_RealFlagButNoBackendFallsBack() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
+    func testMotifs_RealFlagButNoBackendFallsBack() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
         defer { app.shutdown() }
         // No backend URL set, should not crash and should return fallback
         try app.test(.GET, "/api/v1/analysis/motifs") { res in
@@ -52,16 +52,16 @@ final class AnalysisTests: XCTestCase {
         }
     }
 
-    func testHealthz() throws {
-        let app = try makeApp()
+    func testHealthz() async throws {
+        let app = try await makeApp()
         defer { app.shutdown() }
         try app.test(.GET, "/healthz") { res in
             XCTAssertEqual(res.status, .ok)
         }
     }
     
-    func testInfer_StubMode() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
+    func testInfer_StubMode() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
         defer { app.shutdown() }
         
         // Valid 100x9 input
@@ -79,8 +79,8 @@ final class AnalysisTests: XCTestCase {
         }
     }
     
-    func testInfer_BadRowCount() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
+    func testInfer_BadRowCount() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
         defer { app.shutdown() }
         
         // Invalid: only 50 rows instead of 100
@@ -95,8 +95,8 @@ final class AnalysisTests: XCTestCase {
         }
     }
     
-    func testInfer_BadColumnCount() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
+    func testInfer_BadColumnCount() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
         defer { app.shutdown() }
         
         // Invalid: 5 columns instead of 9 in some rows
@@ -114,8 +114,8 @@ final class AnalysisTests: XCTestCase {
         }
     }
     
-    func testInfer_RealModeNoBackend() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
+    func testInfer_RealModeNoBackend() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
         defer { app.shutdown() }
         // No backend URL set, should fallback gracefully
         

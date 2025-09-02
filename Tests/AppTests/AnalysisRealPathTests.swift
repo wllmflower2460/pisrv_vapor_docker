@@ -3,8 +3,8 @@ import XCTest
 @testable import App
 
 final class AnalysisRealPathTests: XCTestCase {
-    func testMotifs_RealPath_UsesMockSidecar() throws {
-        let app = Application(.testing)
+    func testMotifs_RealPath_UsesMockSidecar() async throws {
+        let app = try await Application.make(.testing)
         defer { app.shutdown() }
         try configure(app)
 
