@@ -69,7 +69,6 @@ struct AnalysisController: RouteCollection {
     }
 
     func infer(req: Request) async throws -> InferResponse {
-        let started = Date()
         let inferRequest = try req.content.decode(InferRequest.self)
         try inferRequest.validate()
         
@@ -83,12 +82,11 @@ struct AnalysisController: RouteCollection {
         
         // Real mode: proxy to sidecar
         let backend = Environment.get("MODEL_BACKEND_URL") ?? "http://hailo-inference:8000/infer"
-        let timeoutMs = Int(Environment.get("BACKEND_TIMEOUT_MS") ?? "1500") ?? 1500
         
         do {
             // Convert Double to Float for the sidecar
             let window = inferRequest.x.map { row in row.map(Float.init) }
-            let result = try await ModelInferenceService.analyzeIMUWindow(req, window: window, modelURL: backend, timeoutMs: timeoutMs)
+            let result = try await ModelInferenceService.analyzeIMUWindow(req, window: window, modelURL: backend)
             
             let latent = (result.latent ?? []).map(Double.init)
             let motifScores = (result.motif_scores ?? []).map(Double.init)
