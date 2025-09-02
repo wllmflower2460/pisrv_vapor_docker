@@ -16,60 +16,59 @@ final class AnalysisTests: XCTestCase {
         super.tearDown()
     }
 
-    func makeApp() throws -> Application {
-        let app = Application(.testing)
+    func makeApp() async throws -> Application {
+        let app = try await Application.make(.testing)
         try configure(app)
         return app
     }
     
-    func makeAppWithEnvironment(_ env: [String: String]) throws -> Application {
+    func makeAppWithEnvironment(_ env: [String: String]) async throws -> Application {
         // Set environment variables before Application init
         for (key, value) in env {
             setenv(key, value, 1)
         }
-        let app = Application(.testing)
+        let app = try await Application.make(.testing)
         try configure(app)
         return app
     }
 
-    func testMotifs_StubPath() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
-        defer { app.shutdown() }
-        await app.test(.GET, "/api/v1/analysis/motifs") { res in
+    func testMotifs_StubPath() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
+        try await app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
             // Expect stub structure (should contain "motifs")
             XCTAssertTrue(res.body.string.contains("motifs"))
         }
+        try await app.asyncShutdown()
     }
 
-    func testMotifs_RealFlagButNoBackendFallsBack() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
-        defer { app.shutdown() }
+    func testMotifs_RealFlagButNoBackendFallsBack() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
         // No backend URL set, should not crash and should return fallback
-        await app.test(.GET, "/api/v1/analysis/motifs") { res in
+        try await app.test(.GET, "/api/v1/analysis/motifs") { res in
             XCTAssertEqual(res.status, .ok)
             XCTAssertTrue(res.body.string.contains("motifs"))
         }
+        try await app.asyncShutdown()
     }
 
-    func testHealthz() throws {
-        let app = try makeApp()
-        defer { app.shutdown() }
-        await app.test(.GET, "/healthz") { res in
+    func testHealthz() async throws {
+        let app = try await makeApp()
+        try await app.test(.GET, "/healthz") { res in
             XCTAssertEqual(res.status, .ok)
         }
+        try await app.asyncShutdown()
     }
     
-    func testInfer_StubMode() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
-        defer { app.shutdown() }
+    func testInfer_StubMode() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
         
         // Valid 100x9 input
         let validInput = [
             "x": (0..<100).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(validInput)
         }) { res in
             XCTAssertEqual(res.status, .ok)
@@ -77,27 +76,27 @@ final class AnalysisTests: XCTestCase {
             XCTAssertEqual(response.latent.count, 64)
             XCTAssertEqual(response.motif_scores.count, 12)
         }
+        try await app.asyncShutdown()
     }
     
-    func testInfer_BadRowCount() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
-        defer { app.shutdown() }
+    func testInfer_BadRowCount() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
         
         // Invalid: only 50 rows instead of 100
         let invalidInput = [
             "x": (0..<50).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(invalidInput)
         }) { res in
             XCTAssertEqual(res.status, .badRequest)
         }
+        try await app.asyncShutdown()
     }
     
-    func testInfer_BadColumnCount() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
-        defer { app.shutdown() }
+    func testInfer_BadColumnCount() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "false"])
         
         // Invalid: 5 columns instead of 9 in some rows
         let invalidInput = [
@@ -107,23 +106,23 @@ final class AnalysisTests: XCTestCase {
             }
         ]
         
-        await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(invalidInput)
         }) { res in
             XCTAssertEqual(res.status, .badRequest)
         }
+        try await app.asyncShutdown()
     }
     
-    func testInfer_RealModeNoBackend() throws {
-        let app = try makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
-        defer { app.shutdown() }
+    func testInfer_RealModeNoBackend() async throws {
+        let app = try await makeAppWithEnvironment(["USE_REAL_MODEL": "true"])
         // No backend URL set, should fallback gracefully
         
         let validInput = [
             "x": (0..<100).map { _ in (0..<9).map { _ in Double.random(in: -1...1) } }
         ]
         
-        await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
+        try await app.test(.POST, "/api/v1/analysis/infer", beforeRequest: { req in
             try req.content.encode(validInput)
         }) { res in
             XCTAssertEqual(res.status, .ok)
@@ -131,6 +130,7 @@ final class AnalysisTests: XCTestCase {
             XCTAssertEqual(response.latent.count, 64)
             XCTAssertEqual(response.motif_scores.count, 12)
         }
+        try await app.asyncShutdown()
     }
 
 }
