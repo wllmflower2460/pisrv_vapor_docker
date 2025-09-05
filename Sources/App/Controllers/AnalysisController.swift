@@ -85,15 +85,7 @@ struct AnalysisController: RouteCollection {
         
         do {
             // Convert Double to Float for the sidecar
-            var window = Array(repeating: [Float](), count: inferRequest.x.count)
-            for (i, row) in inferRequest.x.enumerated() {
-                var floatRow = [Float]()
-                floatRow.reserveCapacity(row.count)
-                for value in row {
-                    floatRow.append(Float(value))
-                }
-                window[i] = floatRow
-            }
+            let window = inferRequest.x.map { row in row.map(Float.init) }
             let result = try await ModelInferenceService.analyzeIMUWindow(req, window: window, modelURL: backend)
             
             if result.latent == nil {

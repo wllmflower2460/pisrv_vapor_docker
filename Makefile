@@ -24,12 +24,15 @@ HDR            ?= X-API-Key: $(API_KEY)
 
 # Models and compose
 MODELS_DIR     ?= appdata/models/tcn_vae
-COMPOSE_FILES   = -f docker-compose.yml -f docker-compose.model.yml
+COMPOSE_FILES   = -f docker-compose.yml
 COMPOSE         = docker compose $(COMPOSE_FILES)
+COMPOSE_STUB    = docker compose --profile hailo-stub
+COMPOSE_DEVICE  = docker compose --profile hailo-device
 
 .PHONY: help \
         init check-models test \
         compose-up compose-down compose-ps compose-logs compose-build \
+        hailo-stub hailo-device hailo-down hailo-logs \
         up down ps logs build run stop restart rebuild shell inspect health \
         container-build container-run container-stop container-restart container-rebuild container-logs container-shell container-ps container-inspect container-health \
         sessions session results smoke \
@@ -102,6 +105,68 @@ inspect: ## Inspect current containers (basic)
 	@$(COMPOSE) ps
 health: ## Show health/status summary
 	@$(COMPOSE) ps
+
+###############################
+# Hailo Integration (T2.1a)
+###############################
+hailo-stub: ## Start EdgeInfer + Hailo stub (development mode)
+	@$(COMPOSE_STUB) up -d --build
+
+hailo-device: ## Start EdgeInfer + Hailo device (Pi production mode)  
+	@$(COMPOSE_DEVICE) up -d --build
+
+hailo-down: ## Stop all Hailo services
+	@$(COMPOSE_STUB) down
+	@$(COMPOSE_DEVICE) down
+
+hailo-logs: ## Show logs for all Hailo services
+	@$(COMPOSE_STUB) logs -f 2>/dev/null || $(COMPOSE_DEVICE) logs -f
+
+test-health: ## Run cross-service health integration tests
+	@./scripts/test-health-integration.sh
+
+test-e2e: ## Run end-to-end integration tests
+	@./scripts/test-e2e-integration.sh
+
+test-performance: ## Run standard performance tests (60s, 10 users)
+	@./scripts/test-performance.sh
+
+test-performance-quick: ## Run quick performance validation (15s, 5 users)
+	@DURATION=15 USERS=5 ./scripts/test-performance.sh quick
+
+test-performance-stress: ## Run stress test with increasing load
+	@./scripts/test-performance.sh stress
+
+test-all: ## Run all test suites (unit, health, e2e, performance-quick)
+	@echo "🧪 Running complete test suite..."
+	@$(MAKE) test
+	@$(MAKE) test-health
+	@$(MAKE) test-e2e
+	@$(MAKE) test-performance-quick
+
+###############################
+# Monitoring & Observability (T2.2a)
+###############################
+monitoring-up: ## Start comprehensive monitoring stack (Prometheus + Grafana)
+	@echo "🔍 Starting monitoring stack..."
+	@$(COMPOSE_STUB) up -d
+	@docker compose -f docker-compose.monitoring.yml up -d
+	@echo "📊 Grafana available at: http://localhost:3000 (admin/admin123)"
+	@echo "🎯 Prometheus available at: http://localhost:9090"
+
+monitoring-down: ## Stop monitoring stack
+	@docker compose -f docker-compose.monitoring.yml down
+	@$(COMPOSE_STUB) down
+
+monitoring-logs: ## Show monitoring service logs
+	@docker compose -f docker-compose.monitoring.yml logs -f
+
+monitoring-restart: ## Restart monitoring services
+	@docker compose -f docker-compose.monitoring.yml restart
+
+monitoring-clean: ## Clean monitoring data (removes volumes)
+	@docker compose -f docker-compose.monitoring.yml down -v
+	@docker volume rm pisrv_vapor_docker_prometheus_data pisrv_vapor_docker_grafana_data 2>/dev/null || true
 
 ###############################
 # Single-container lifecycle (vapor app only)

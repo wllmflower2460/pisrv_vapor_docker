@@ -1,0 +1,395 @@
+{
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": true,
+    "panels": [
+      {
+        "title": "EdgeInfer Service Overview",
+        "type": "stat",
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "color": {
+              "mode": "palette-classic"
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "horizontal",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center"
+        },
+        "targets": [
+          {
+            "expr": "edgeinfer_uptime_seconds",
+            "refId": "A",
+            "legendFormat": "Service Uptime (sec)"
+          },
+          {
+            "expr": "sum(rate(edgeinfer_http_requests_total[5m])) * 60",
+            "refId": "B", 
+            "legendFormat": "Requests/min"
+          },
+          {
+            "expr": "edgeinfer_memory_usage_bytes / 1024 / 1024",
+            "refId": "C",
+            "legendFormat": "Memory Usage (MB)"
+          }
+        ]
+      },
+      {
+        "title": "HTTP Request Rate by Endpoint",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 6
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": ["lastNotNull", "mean"]
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum by (route, method) (rate(edgeinfer_http_requests_total[5m]))",
+            "refId": "A",
+            "legendFormat": "{{method}} {{route}}"
+          }
+        ]
+      },
+      {
+        "title": "HTTP Response Status Distribution",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 6
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow", 
+                  "value": 400
+                },
+                {
+                  "color": "red",
+                  "value": 500
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background"
+        },
+        "targets": [
+          {
+            "expr": "sum by (status) (edgeinfer_http_requests_total)",
+            "refId": "A",
+            "legendFormat": "Status {{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Request Duration Percentiles",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 14
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum by (route, le) (rate(edgeinfer_http_request_duration_seconds_bucket[5m]))) * 1000",
+            "refId": "A",
+            "legendFormat": "P50 {{route}}"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum by (route, le) (rate(edgeinfer_http_request_duration_seconds_bucket[5m]))) * 1000",
+            "refId": "B",
+            "legendFormat": "P95 {{route}}"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum by (route, le) (rate(edgeinfer_http_request_duration_seconds_bucket[5m]))) * 1000",
+            "refId": "C",
+            "legendFormat": "P99 {{route}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate by Endpoint",
+        "type": "timeseries", 
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 14
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "color": {
+              "mode": "palette-classic"
+            },
+            "max": 100
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum by (route, method) (rate(edgeinfer_http_errors_total[5m])) / sum by (route, method) (rate(edgeinfer_http_requests_total[5m])) * 100",
+            "refId": "A",
+            "legendFormat": "{{method}} {{route}}"
+          }
+        ]
+      },
+      {
+        "title": "AI Inference Performance",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 22
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        },
+        "targets": [
+          {
+            "expr": "edgeinfer_inference_duration_seconds{quantile=\"0.50\"} * 1000",
+            "refId": "A",
+            "legendFormat": "{{operation}} P50"
+          },
+          {
+            "expr": "edgeinfer_inference_duration_seconds{quantile=\"0.95\"} * 1000",
+            "refId": "B", 
+            "legendFormat": "{{operation}} P95"
+          },
+          {
+            "expr": "edgeinfer_inference_duration_seconds{quantile=\"0.99\"} * 1000",
+            "refId": "C",
+            "legendFormat": "{{operation}} P99"
+          }
+        ]
+      },
+      {
+        "title": "Session Lifecycle Metrics",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 22
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background"
+        },
+        "targets": [
+          {
+            "expr": "edgeinfer_sessions_total{stage=\"started\"}",
+            "refId": "A",
+            "legendFormat": "Sessions Started"
+          },
+          {
+            "expr": "edgeinfer_sessions_total{stage=\"stopped\"}",
+            "refId": "B",
+            "legendFormat": "Sessions Completed"
+          },
+          {
+            "expr": "edgeinfer_sessions_total{stage=\"stream_events\"}",
+            "refId": "C",
+            "legendFormat": "Stream Events"
+          },
+          {
+            "expr": "edgeinfer_sessions_total{stage=\"total_samples\"}",
+            "refId": "D",
+            "legendFormat": "Total Samples Processed"
+          }
+        ]
+      },
+      {
+        "title": "Health Check Status",
+        "type": "stat",
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 0,
+          "y": 30
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background"
+        },
+        "targets": [
+          {
+            "expr": "edgeinfer_health_checks_total{result=~\".*_healthy\"}",
+            "refId": "A",
+            "legendFormat": "{{result}}"
+          }
+        ]
+      },
+      {
+        "title": "Memory Usage Over Time",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 12,
+          "y": 30
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "edgeinfer_memory_usage_bytes",
+            "refId": "A",
+            "legendFormat": "Memory Usage"
+          }
+        ]
+      }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [
+      "edgeinfer",
+      "ai-inference", 
+      "monitoring"
+    ],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "EdgeInfer Service Monitoring Dashboard",
+    "uid": "edgeinfer-monitoring",
+    "version": 1,
+    "weekStart": ""
+  }
+}
