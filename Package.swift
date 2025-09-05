@@ -9,7 +9,7 @@ let package = Package(
     ],
     dependencies: [
         // Vapor core only (Fluent removed)
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.110.0")
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.99.3")
     ],
     targets: [
         .target(
