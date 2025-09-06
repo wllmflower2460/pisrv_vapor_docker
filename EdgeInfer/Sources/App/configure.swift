@@ -21,35 +21,68 @@ public func configure(_ app: Application) async throws {
     
     // MARK: - Route Registration
     
-    // Register health check endpoint with explicit headers (fixes empty reply issue)
-    app.get("healthz") { req -> Response in
-        var buf = req.byteBufferAllocator.buffer(capacity: 2)
-        buf.writeString("OK")
-        var headers = HTTPHeaders()
-        headers.add(name: .contentType, value: "text/plain; charset=utf-8")
-        headers.add(name: .contentLength, value: String(buf.readableBytes))
-        headers.add(name: .connection, value: "close") // ensure immediate flush
-        return Response(status: .ok, headers: headers, body: .init(buffer: buf))
+    // Register enhanced health check endpoint with cross-service validation
+    app.get("healthz") { req async throws -> Response in
+        let healthStatus = await HealthCheckService.performHealthCheck(req)
+        
+        // Return appropriate HTTP status based on health
+        let httpStatus: HTTPResponseStatus = switch healthStatus.status {
+            case "healthy": .ok
+            case "degraded": .ok  // Still operational, but with issues
+            case "unhealthy": .serviceUnavailable
+            default: .internalServerError
+        }
+        
+        // Support both simple text response (for basic health checks)
+        // and JSON response (for detailed monitoring)
+        if req.headers.accept.contains(where: { $0.mediaType == .json }) {
+            return try await healthStatus.encodeResponse(status: httpStatus, for: req)
+        } else {
+            // Simple text response for basic health checks
+            let message = healthStatus.status == "healthy" ? "OK" : "DEGRADED"
+            var buf = req.byteBufferAllocator.buffer(capacity: message.count)
+            buf.writeString(message)
+            var headers = HTTPHeaders()
+            headers.add(name: .contentType, value: "text/plain; charset=utf-8")
+            headers.add(name: .contentLength, value: String(buf.readableBytes))
+            headers.add(name: .connection, value: "close")
+            return Response(status: httpStatus, headers: headers, body: .init(buffer: buf))
+        }
     }
     
     // HEAD support for health check (wget --spider compatibility)
-    app.on(.HEAD, "healthz") { req -> Response in
+    app.on(.HEAD, "healthz") { req async throws -> Response in
+        let healthStatus = await HealthCheckService.performHealthCheck(req)
+        let httpStatus: HTTPResponseStatus = switch healthStatus.status {
+            case "healthy": .ok
+            case "degraded": .ok
+            case "unhealthy": .serviceUnavailable
+            default: .internalServerError
+        }
         var headers = HTTPHeaders()
         headers.add(name: .contentLength, value: "0")
         headers.add(name: .connection, value: "close")
-        return Response(status: .ok, headers: headers)
+        return Response(status: httpStatus, headers: headers)
     }
     
-    // Register basic metrics endpoint  
-    app.get("metrics") { req async throws -> String in
-        return """
-        # HELP http_requests_total Total HTTP requests
-        # TYPE http_requests_total counter
-        http_requests_total{method="GET",route="/healthz",status="200"} 1
-        # HELP up Service up indicator
-        # TYPE up gauge
-        up 1
-        """
+    // Detailed health check endpoint for monitoring systems
+    app.get("health", "detailed") { req async throws -> HealthStatus in
+        return await HealthCheckService.performHealthCheck(req)
+    }
+    
+    // Register comprehensive Prometheus metrics endpoint  
+    app.get("metrics") { req async throws -> Response in
+        let metricsData = await PrometheusMetrics.shared.exportMetrics()
+        
+        // Prometheus metrics format response
+        var buffer = req.byteBufferAllocator.buffer(capacity: metricsData.count)
+        buffer.writeString(metricsData)
+        
+        var headers = HTTPHeaders()
+        headers.add(name: .contentType, value: "text/plain; version=0.0.4; charset=utf-8")
+        headers.add(name: .contentLength, value: String(buffer.readableBytes))
+        
+        return Response(status: .ok, headers: headers, body: .init(buffer: buffer))
     }
     
     // Register analysis endpoints  

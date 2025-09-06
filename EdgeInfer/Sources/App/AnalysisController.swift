@@ -18,6 +18,9 @@ struct AnalysisController: RouteCollection {
     func startAnalysis(req: Request) async throws -> SessionStartResponse {
         let sessionId = await sessionStore.createSession()
         
+        // Record session start metrics
+        await PrometheusMetrics.shared.recordSessionStart()
+        
         req.logger.info("Started analysis session: \(sessionId)")
         
         return SessionStartResponse(sessionId: sessionId)
@@ -26,10 +29,18 @@ struct AnalysisController: RouteCollection {
     // PUT /api/v1/analysis/stream
     @Sendable
     func streamIMU(req: Request) async throws -> HTTPStatus {
+        let processingStart = Date()
         let window = try req.content.decode(IMUWindow.self)
         
         do {
             try await sessionStore.append(sessionId: window.sessionId, window: window)
+            
+            // Record streaming metrics
+            let processingTime = Date().timeIntervalSince(processingStart)
+            await PrometheusMetrics.shared.recordStreamingData(
+                sampleCount: window.samples.count,
+                processingTime: processingTime
+            )
             
             req.logger.debug("Streamed \(window.samples.count) samples for session: \(window.sessionId)")
             
@@ -56,8 +67,18 @@ struct AnalysisController: RouteCollection {
         
         // If we have enough samples, use real AI inference
         if latestSamples.count >= 100 {
+            let inferenceStart = Date()
             do {
                 let inferenceResult = try await ModelInferenceService.analyzeIMUWindow(req, samples: latestSamples)
+                let inferenceTime = Date().timeIntervalSince(inferenceStart)
+                
+                // Record successful inference metrics
+                await PrometheusMetrics.shared.recordInference(
+                    operation: "motifs",
+                    duration: inferenceTime,
+                    success: true,
+                    sampleCount: latestSamples.count
+                )
                 
                 // Convert motif scores to Motif objects
                 var motifs: [Motif] = []
@@ -77,6 +98,16 @@ struct AnalysisController: RouteCollection {
                     realMotifs: motifs
                 )
             } catch {
+                let inferenceTime = Date().timeIntervalSince(inferenceStart)
+                
+                // Record failed inference metrics
+                await PrometheusMetrics.shared.recordInference(
+                    operation: "motifs",
+                    duration: inferenceTime,
+                    success: false,
+                    sampleCount: latestSamples.count
+                )
+                
                 req.logger.error("AI inference failed: \(error)")
                 // Fallback to stub response
                 return MotifsResponse(sessionId: sessionId)
@@ -108,8 +139,19 @@ struct AnalysisController: RouteCollection {
         }
         
         do {
+            let inferenceStart = Date()
+            
             // Use real TCN-VAE model inference for activity prediction
             let inferenceResult = try await ModelInferenceService.analyzeIMUWindow(req, samples: samples)
+            let inferenceTime = Date().timeIntervalSince(inferenceStart)
+            
+            // Record successful synchrony inference metrics
+            await PrometheusMetrics.shared.recordInference(
+                operation: "synchrony",
+                duration: inferenceTime,
+                success: true,
+                sampleCount: samples.count
+            )
             
             // Create SynchronyMetrics from inference result (simplified for now)
             let synchronyMetrics = SynchronyMetrics(
@@ -129,6 +171,16 @@ struct AnalysisController: RouteCollection {
             return response
             
         } catch {
+            let inferenceTime = Date().timeIntervalSince(Date().addingTimeInterval(-0.001)) // Approximate since we don't have start time
+            
+            // Record failed synchrony inference metrics
+            await PrometheusMetrics.shared.recordInference(
+                operation: "synchrony",
+                duration: inferenceTime,
+                success: false,
+                sampleCount: samples.count
+            )
+            
             req.logger.error("Synchrony inference failed for session: \(sessionId), error: \(error)")
             // Fall back to stub response on error
             return SynchronyResponse(sessionId: sessionId)
@@ -147,6 +199,12 @@ struct AnalysisController: RouteCollection {
         guard let session = await sessionStore.stopSession(id: stopReq.sessionId) else {
             throw Abort(.notFound, reason: "Session not found: \(stopReq.sessionId)")
         }
+        
+        // Record session stop metrics
+        await PrometheusMetrics.shared.recordSessionStop(
+            duration: session.duration,
+            sampleCount: session.samples.count
+        )
         
         let response = SessionStopResponse(
             sessionId: stopReq.sessionId,

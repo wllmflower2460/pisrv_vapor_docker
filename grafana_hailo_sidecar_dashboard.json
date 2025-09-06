@@ -1,0 +1,381 @@
+{
+  "dashboard": {
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": true,
+    "panels": [
+      {
+        "title": "Hailo Sidecar Service Overview",
+        "type": "stat",
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "color": {
+              "mode": "palette-classic"
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "orientation": "horizontal",
+          "textMode": "auto",
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center"
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(hailo_inference_requests_total[5m])) * 60",
+            "refId": "A",
+            "legendFormat": "Inference Requests/min"
+          },
+          {
+            "expr": "hailo_inference_duration_seconds{quantile=\"0.95\",operation=\"tcn_vae_inference\"} * 1000",
+            "refId": "B", 
+            "legendFormat": "P95 Inference Latency (ms)"
+          },
+          {
+            "expr": "rate(hailo_samples_processed_total{metric=\"samples_processed\"}[5m]) * 60",
+            "refId": "C",
+            "legendFormat": "Samples/min"
+          },
+          {
+            "expr": "sum(hailo_inference_requests_total{status=\"success\"}) / sum(hailo_inference_requests_total) * 100",
+            "refId": "D",
+            "legendFormat": "Success Rate (%)"
+          }
+        ]
+      },
+      {
+        "title": "Hailo Inference Request Rate",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 6
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": ["lastNotNull", "mean"]
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum by (operation) (rate(hailo_inference_requests_total[5m]))",
+            "refId": "A",
+            "legendFormat": "{{operation}} req/s"
+          }
+        ]
+      },
+      {
+        "title": "Hailo Inference Success vs Failure Rate",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 6
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum by (status) (rate(hailo_inference_requests_total[5m]))",
+            "refId": "A",
+            "legendFormat": "{{status}} req/s"
+          }
+        ]
+      },
+      {
+        "title": "TCN-VAE Inference Latency Percentiles",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 14
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        },
+        "targets": [
+          {
+            "expr": "hailo_inference_duration_seconds{quantile=\"0.5\",operation=\"tcn_vae_inference\"} * 1000",
+            "refId": "A",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "hailo_inference_duration_seconds{quantile=\"0.95\",operation=\"tcn_vae_inference\"} * 1000",
+            "refId": "B",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "hailo_inference_duration_seconds{quantile=\"0.99\",operation=\"tcn_vae_inference\"} * 1000",
+            "refId": "C",
+            "legendFormat": "P99"
+          },
+          {
+            "expr": "rate(hailo_inference_duration_seconds_sum{operation=\"tcn_vae_inference\"}[5m]) / rate(hailo_inference_duration_seconds_count{operation=\"tcn_vae_inference\"}[5m]) * 1000",
+            "refId": "D",
+            "legendFormat": "Average"
+          }
+        ]
+      },
+      {
+        "title": "Hailo Error Analysis",
+        "type": "timeseries", 
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 14
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum by (error_type) (rate(hailo_inference_errors_total[5m]))",
+            "refId": "A",
+            "legendFormat": "{{error_type}}"
+          }
+        ]
+      },
+      {
+        "title": "Hailo Sidecar Health Status",
+        "type": "stat",
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 0,
+          "y": 22
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background"
+        },
+        "targets": [
+          {
+            "expr": "hailo_inference_requests_total{operation=\"hailo_sidecar\",status=\"healthy\"}",
+            "refId": "A",
+            "legendFormat": "Hailo Sidecar Healthy"
+          },
+          {
+            "expr": "hailo_inference_requests_total{operation=\"hailo_sidecar\",status=\"unhealthy\"}",
+            "refId": "B",
+            "legendFormat": "Hailo Sidecar Unhealthy"
+          }
+        ]
+      },
+      {
+        "title": "Sample Processing Throughput",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 12,
+          "y": 22
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "sampps", 
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "rate(hailo_samples_processed_total{metric=\"samples_processed\"}[5m])",
+            "refId": "A",
+            "legendFormat": "Samples Processed/sec"
+          },
+          {
+            "expr": "rate(hailo_samples_processed_total{metric=\"latent_vectors\"}[5m])",
+            "refId": "B",
+            "legendFormat": "Latent Vectors/sec"
+          },
+          {
+            "expr": "rate(hailo_samples_processed_total{metric=\"motif_predictions\"}[5m])",
+            "refId": "C",
+            "legendFormat": "Motif Predictions/sec"
+          }
+        ]
+      },
+      {
+        "title": "Model Output Dimensions",
+        "type": "stat",
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 0,
+          "y": 28
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "options": {
+          "colorMode": "background"
+        },
+        "targets": [
+          {
+            "expr": "hailo_samples_processed_total{metric=\"latent_dimensions\"}",
+            "refId": "A",
+            "legendFormat": "Latent Vector Size"
+          },
+          {
+            "expr": "hailo_samples_processed_total{metric=\"motif_classes\"}",
+            "refId": "B",
+            "legendFormat": "Motif Classes"
+          }
+        ]
+      },
+      {
+        "title": "Hailo Health Check Response Times",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 12,
+          "y": 28
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "hailo_inference_duration_seconds{operation=\"hailo_sidecar_health\"} * 1000",
+            "refId": "A",
+            "legendFormat": "Health Check Response Time"
+          }
+        ]
+      }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [
+      "hailo",
+      "tcn-vae",
+      "inference", 
+      "monitoring"
+    ],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Hailo Sidecar Monitoring Dashboard", 
+    "uid": "hailo-sidecar-monitoring",
+    "version": 1,
+    "weekStart": ""
+  }
+}
